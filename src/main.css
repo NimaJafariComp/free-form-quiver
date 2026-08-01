@@ -442,7 +442,10 @@ kbd {
 .diagram-box {
     position: absolute;
     box-sizing: border-box;
-    z-index: 0;
+    /* Keep only the box controls above diagram nodes. The container itself
+       remains transparent to pointer events, so nodes inside stay editable. */
+    z-index: 3;
+    pointer-events: none;
     min-width: 180px;
     min-height: 120px;
 
@@ -481,6 +484,7 @@ kbd {
     background: hsl(0 0% 100% / 0.46);
     cursor: move;
     user-select: none;
+    pointer-events: auto;
 }
 
 .dark-theme .diagram-box__header {
@@ -503,6 +507,7 @@ kbd {
     width: 13px;
     height: 13px;
     cursor: nwse-resize;
+    pointer-events: auto;
     background: linear-gradient(135deg, transparent 42%, currentColor 43% 54%, transparent 55%);
 }
 
