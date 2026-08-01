@@ -1083,6 +1083,7 @@ class UI {
 
     initialise() {
         this.element.class_list.add("ui");
+        this.element.class_list.add("freeform");
         this.switch_mode(UIMode.default);
 
         // Set the grid background.
@@ -3460,12 +3461,11 @@ class UI {
         const LABEL_SCALE_STEP = 0.9;
 
         let max_width;
-        let max_height = Infinity;
         if (cell.is_vertex()) {
             if (this.is_freeform()) {
-                const bounds = this.freeform_bounds_for(cell);
-                max_width = (bounds.width - CONSTANTS.CONTENT_PADDING * 2) * MAX_LABEL_WIDTH;
-                max_height = (bounds.height - CONSTANTS.CONTENT_PADDING * 2) * MAX_LABEL_WIDTH;
+                // Labels are annotations, not geometry: allow them to overflow
+                // the fixed vertex frame without moving any other diagram part.
+                max_width = Infinity;
             } else {
                 max_width = this.cell_size(this.cell_width, cell.position.x) * MAX_LABEL_WIDTH;
             }
@@ -3491,10 +3491,11 @@ class UI {
             );
         }
 
-        // Keep edge labels and freeform vertex labels within their fixed visual bounds.
-        if (cell.is_edge() || (cell.is_vertex() && this.is_freeform())) {
+        // Keep edge labels within their available arrow length. Freeform
+        // vertex labels deliberately overflow instead of changing geometry.
+        if (cell.is_edge()) {
             label.style.fontSize = "";
-            while (label.offsetWidth > max_width || label.offsetHeight > max_height) {
+            while (label.offsetWidth > max_width) {
                 const new_size = parseFloat(getComputedStyle(label).fontSize) * LABEL_SCALE_STEP;
                 label.style.fontSize = `${new_size}px`;
             }

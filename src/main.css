@@ -428,6 +428,13 @@ kbd {
     text-align: center;
 }
 
+/* Labels in the wiring editor are annotations. They must never resize a
+   vertex or alter connected arrows. */
+.ui.freeform .vertex .content,
+.ui.freeform .vertex .label {
+    overflow: visible;
+}
+
 /* Freeform rectangular containers. They sit behind Quiver cells and make
    reusable problem definitions legible without becoming connectable nodes. */
 .diagram-box {
