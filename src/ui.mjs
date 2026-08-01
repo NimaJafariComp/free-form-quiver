@@ -668,11 +668,10 @@ class UI {
         // The default (minimum) size of each column and row, if a width or height has not been
         // specified.
         this.default_cell_size = 128;
-        // The fork defaults to freeform placement, including imported Quiver
-        // URLs. The legacy shared grid is available only when explicitly
-        // requested with `?layout=grid`.
-        const initial_parameters = url_parameters();
-        this.layout_mode = initial_parameters.get("layout") === "grid" ? "grid" : "freeform";
+        // This fork is deliberately grid-free. Imported Quiver documents use
+        // their original integer coordinates only as initial freeform positions;
+        // no URL parameter can re-enable shared row/column sizing.
+        this.layout_mode = "freeform";
         this.freeform_layout = new FreeformLayout({ snap: 16 });
         this.box_store = new BoxStore();
         this.box_elements = new Map();

@@ -21,8 +21,8 @@ Try **quiver** out: [q.uiver.app](https://q.uiver.app)
 
 ## Freeform wiring-diagram mode
 
-New diagrams use an independent, freeform canvas: moving or resizing one object no longer changes
-the placement of any other object. Existing shared links retain Quiver's grid layout. The **Boxes**
+Diagrams use an independent, freeform canvas: moving or resizing one object no longer changes
+the placement of any other object. Imported shared links are opened as freeform diagrams. The **Boxes**
 toolbar menu adds draggable, resizable rectangular **definition** and **problem bank** containers;
 their titles can be edited directly. This is intended for semantic wiring diagrams while preserving
 Quiver's existing vertices, arrows, labels, and exports.
