@@ -700,6 +700,9 @@ class UI {
 
         // The grid background.
         this.grid = null;
+        // A visual-only guide for freeform wiring diagrams. It has no effect
+        // on positions, dimensions, snapping, or arrow routing.
+        this.show_static_grid = false;
 
         // Whether to prevent relayout for individual cell changes so as to batch it instead.
         this.buffer_updates = false;
@@ -3576,7 +3579,10 @@ class UI {
     update_grid() {
         if (this.is_freeform()) {
             if (this.grid !== null) {
-                this.grid.class_list.add("hidden");
+                this.grid.class_list.toggle("hidden", !this.show_static_grid);
+                if (this.show_static_grid) {
+                    this.draw_static_grid();
+                }
             }
             return;
         }
@@ -3630,6 +3636,32 @@ class UI {
         }
         context.lineDashOffset
             = offset.x * scale - dash_offset - width % (this.default_cell_size * scale) / 2;
+        context.stroke();
+    }
+
+    draw_static_grid() {
+        const [width, height] = [document.body.offsetWidth, document.body.offsetHeight];
+        const canvas = this.grid;
+        canvas.resize(width, height);
+        const context = canvas.context;
+        const scale = 2 ** this.scale;
+        const spacing = this.default_cell_size * scale;
+        const x_origin = ((width / 2 - this.view.x * scale) % spacing + spacing) % spacing;
+        const y_origin = ((height / 2 - this.view.y * scale) % spacing + spacing) % spacing;
+
+        context.clearRect(0, 0, width, height);
+        context.strokeStyle = getComputedStyle(this.element.element).getPropertyValue("--ui-grid");
+        context.lineWidth = CONSTANTS.GRID_BORDER_WIDTH;
+        context.setLineDash([this.default_cell_size / 16, this.default_cell_size / 16]);
+        context.beginPath();
+        for (let x = x_origin; x <= width; x += spacing) {
+            context.moveTo(x, 0);
+            context.lineTo(x, height);
+        }
+        for (let y = y_origin; y <= height; y += spacing) {
+            context.moveTo(0, y);
+            context.lineTo(width, y);
+        }
         context.stroke();
     }
 
@@ -7651,14 +7683,14 @@ class Toolbar {
         );
 
         add_action(
-            "Hide grid",
+            "Show grid",
             "hide-grid",
             [{ key: "H", modifier: false, context: Shortcuts.SHORTCUT_PRIORITY.Defer }],
             function () {
-                ui.grid.class_list.toggle("hidden");
-                const hidden = ui.grid.class_list.contains("hidden");
+                ui.show_static_grid = !ui.show_static_grid;
+                ui.update_grid();
                 this.query_selector(".name").replace(
-                    (hidden ? "Show" : "Hide") + " grid"
+                    (ui.show_static_grid ? "Hide" : "Show") + " grid"
                 );
             },
         );
