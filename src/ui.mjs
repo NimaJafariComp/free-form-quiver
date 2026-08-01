@@ -668,14 +668,11 @@ class UI {
         // The default (minimum) size of each column and row, if a width or height has not been
         // specified.
         this.default_cell_size = 128;
-        // The fork defaults to freeform placement. `?layout=grid` retains the
-        // original Quiver layout and its URL/base64 compatibility behaviour.
+        // The fork defaults to freeform placement, including imported Quiver
+        // URLs. The legacy shared grid is available only when explicitly
+        // requested with `?layout=grid`.
         const initial_parameters = url_parameters();
-        this.layout_mode = initial_parameters.get("layout") === "freeform"
-            ? "freeform"
-            // Existing shared Quiver URLs are grid documents; a new empty
-            // document starts in the fork's freeform mode.
-            : (initial_parameters.has("q") ? "grid" : "freeform");
+        this.layout_mode = initial_parameters.get("layout") === "grid" ? "grid" : "freeform";
         this.freeform_layout = new FreeformLayout({ snap: 16 });
         this.box_store = new BoxStore();
         this.box_elements = new Map();
@@ -3465,7 +3462,12 @@ class UI {
 
         let max_width;
         if (cell.is_vertex()) {
-            max_width = this.cell_size(this.cell_width, cell.position.x) * MAX_LABEL_WIDTH;
+            // A freeform vertex grows independently around its label. There
+            // is no shared column width to preserve, so never scale it down
+            // merely to fit the old grid cell.
+            max_width = this.is_freeform()
+                ? Infinity
+                : this.cell_size(this.cell_width, cell.position.x) * MAX_LABEL_WIDTH;
         } else {
             const offset_for = (endpoint) => {
                 if (endpoint.is_vertex()) {
@@ -3480,7 +3482,7 @@ class UI {
         }
 
         // If vertices are too large (or too small), we resize the grid to fit them.
-        if (cell.is_vertex()) {
+        if (cell.is_vertex() && !this.is_freeform()) {
             this.update_cell_size(
                 cell,
                 label.offsetWidth,
@@ -3571,6 +3573,12 @@ class UI {
 
     /// Update the grid with respect to the view and size of the window.
     update_grid() {
+        if (this.is_freeform()) {
+            if (this.grid !== null) {
+                this.grid.class_list.add("hidden");
+            }
+            return;
+        }
         // Constants for parameters of the grid pattern.
         // The (average) length of the dashes making up the cell border lines.
         const DASH_LENGTH = this.default_cell_size / 16;
