@@ -2013,6 +2013,9 @@ class UI {
 
         // Clicking on the focus point reveals it, after which another click adds a new node.
         this.focus_point.listen(pointer_event("down"), (event) => {
+            if (this.is_freeform()) {
+                return;
+            }
             if (event.button === 0) {
                 if (this.in_mode(UIMode.Default)) {
                     event.preventDefault();
@@ -2055,6 +2058,9 @@ class UI {
         // aesthetic purposes) or the focus point being covered by other elements (like edge
         // endpoints).
         this.container.listen(pointer_event("up"), (event) => {
+            if (this.is_freeform()) {
+                return;
+            }
             if (event.button === 0 && event.pointerType !== "touch") {
                 // Handle pointer releases without having moved the cursor from the initial cell.
                 this.focus_point.class_list.remove("pending", "active");
@@ -2144,6 +2150,9 @@ class UI {
         // connecting it to something (possibly an empty grid cell, which will
         // create a new vertex and connect them both).
         this.focus_point.listen(pointer_event("leave"), (event) => {
+            if (this.is_freeform()) {
+                return;
+            }
             if (event.pointerType !== "touch") {
                 this.focus_point.class_list.remove("pending");
 
@@ -2175,7 +2184,7 @@ class UI {
             // to an `"active"` state. Moving the pointer off the focus
             // point in this state will create a new vertex and trigger the
             // connection mode.
-            if (this.focus_point.class_list.contains("pending")) {
+            if (!this.is_freeform() && this.focus_point.class_list.contains("pending")) {
                 this.focus_point.class_list.remove("pending");
                 this.focus_point.class_list.add("active");
             }
@@ -2257,6 +2266,14 @@ class UI {
                     // rotation of the label alignment buttons).
                     this.panel.update(this);
                 }
+            }
+
+            if (this.is_freeform()) {
+                if (this.in_mode(UIMode.Connect)) {
+                    event.preventDefault();
+                    this.mode.update(this, this.offset_from_event(event));
+                }
+                return;
             }
 
             // If the user has currently clicked to place a vertex, or activated keyboard controls,
