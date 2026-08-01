@@ -3460,13 +3460,15 @@ class UI {
         const LABEL_SCALE_STEP = 0.9;
 
         let max_width;
+        let max_height = Infinity;
         if (cell.is_vertex()) {
-            // A freeform vertex grows independently around its label. There
-            // is no shared column width to preserve, so never scale it down
-            // merely to fit the old grid cell.
-            max_width = this.is_freeform()
-                ? Infinity
-                : this.cell_size(this.cell_width, cell.position.x) * MAX_LABEL_WIDTH;
+            if (this.is_freeform()) {
+                const bounds = this.freeform_bounds_for(cell);
+                max_width = (bounds.width - CONSTANTS.CONTENT_PADDING * 2) * MAX_LABEL_WIDTH;
+                max_height = (bounds.height - CONSTANTS.CONTENT_PADDING * 2) * MAX_LABEL_WIDTH;
+            } else {
+                max_width = this.cell_size(this.cell_width, cell.position.x) * MAX_LABEL_WIDTH;
+            }
         } else {
             const offset_for = (endpoint) => {
                 if (endpoint.is_vertex()) {
@@ -3489,11 +3491,10 @@ class UI {
             );
         }
 
-        // Reset the label font size for edges, to reduce overlap.
-        if (cell.is_edge()) {
+        // Keep edge labels and freeform vertex labels within their fixed visual bounds.
+        if (cell.is_edge() || (cell.is_vertex() && this.is_freeform())) {
             label.style.fontSize = "";
-            // Ensure that the label fits within the cell by dynamically resizing it.
-            while (label.offsetWidth > max_width) {
+            while (label.offsetWidth > max_width || label.offsetHeight > max_height) {
                 const new_size = parseFloat(getComputedStyle(label).fontSize) * LABEL_SCALE_STEP;
                 label.style.fontSize = `${new_size}px`;
             }
@@ -8602,24 +8603,11 @@ export class Vertex extends Cell {
         const { offsetWidth, offsetHeight } = label.element;
         if (ui.is_freeform()) {
             const bounds = ui.freeform_bounds_for(this);
-            const content = this.content_size(ui, [offsetWidth, offsetHeight]);
-            const resized = new Bounds(
-                bounds.x,
-                bounds.y,
-                Math.max(bounds.width, content.width),
-                Math.max(bounds.height, content.height),
-            );
-            ui.freeform_layout.set(this, resized);
             this.resize_content(ui, [offsetWidth, offsetHeight]);
-            this.element.set_style({
-                width: `${resized.width}px`,
-                height: `${resized.height}px`,
-            });
             this.content_element.set_style({
-                left: `${resized.width / 2}px`,
-                top: `${resized.height / 2}px`,
+                left: `${bounds.width / 2}px`,
+                top: `${bounds.height / 2}px`,
             });
-            this.shape.size = new Dimensions(resized.width, resized.height);
         } else {
             ui.update_cell_size(this, offsetWidth, offsetHeight);
             this.resize_content(ui, [offsetWidth, offsetHeight]);
@@ -8637,6 +8625,19 @@ export class Vertex extends Cell {
 
     /// Resize the cell content to match the label width.
     resize_content(ui, sizes) {
+        if (ui.is_freeform()) {
+            const bounds = ui.freeform_bounds_for(this);
+            const size = new Dimensions(
+                Math.max(1, bounds.width - CONSTANTS.CONTENT_PADDING * 2),
+                Math.max(1, bounds.height - CONSTANTS.CONTENT_PADDING * 2),
+            );
+            this.content_element.set_style({
+                width: `${size.width}px`,
+                height: `${size.height}px`,
+            });
+            this.shape.size = size;
+            return;
+        }
         const size = this.content_size(ui, sizes);
         this.content_element.set_style({
             width: `${size.width}px`,
