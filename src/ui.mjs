@@ -676,6 +676,7 @@ class UI {
         this.box_store = new BoxStore();
         this.box_elements = new Map();
         this.box_drag = null;
+        this.selected_box_id = null;
         // The constraints on the width and height of each cell: we use the maximum constraint for
         // final width/height. We store these separately from `cell_width` and `cell_height` to
         // avoid recomputing the sizes every time, as we access them frequently.
@@ -799,6 +800,47 @@ class UI {
         vertex.render(this);
     }
 
+    select_box(box) {
+        this.deselect();
+        if (this.selected_box_id !== null) {
+            this.box_elements.get(this.selected_box_id)?.class_list.remove("selected");
+        }
+        this.selected_box_id = box.id;
+        this.box_elements.get(box.id)?.class_list.add("selected");
+        this.toolbar.update(this);
+    }
+
+    deselect_box() {
+        if (this.selected_box_id !== null) {
+            this.box_elements.get(this.selected_box_id)?.class_list.remove("selected");
+            this.selected_box_id = null;
+        }
+    }
+
+    restore_box(data) {
+        let box = this.box_store.get(data.id);
+        if (box === null) {
+            box = new RectangularBox(data);
+            this.box_store.add(box);
+        } else {
+            box.title = data.title;
+            box.kind = data.kind;
+            box.bounds = Bounds.from(data.bounds);
+            box.setMembers(data.members);
+        }
+        this.render_rectangular_box(box);
+    }
+
+    delete_box(id) {
+        this.box_elements.get(id)?.remove();
+        this.box_elements.delete(id);
+        this.box_store.delete(id);
+        if (this.selected_box_id === id) {
+            this.selected_box_id = null;
+        }
+        this.toolbar.update(this);
+    }
+
     freeform_vertices() {
         return this.quiver.all_cells().filter((cell) => cell.is_vertex());
     }
@@ -851,9 +893,7 @@ class UI {
             kind,
             bounds: this.initial_box_bounds(),
         });
-        this.box_store.add(box);
-        this.render_rectangular_box(box);
-        this.autosave_diagram();
+        this.history.add(this, [{ kind: "box-create", box: box.toJSON() }], true);
     }
 
     render_rectangular_box(box) {
@@ -867,15 +907,31 @@ class UI {
             const header = new DOM.Div({ class: "diagram-box__header" }).add_to(element);
             new DOM.Element("span", { class: "diagram-box__title", contenteditable: "true" })
                 .add(box.title)
+                .listen("focus", () => {
+                    element.title_before = box.toJSON();
+                    this.select_box(box);
+                })
                 .listen("input", (event) => {
                     box.title = event.currentTarget.textContent.trim();
-                    this.autosave_diagram();
+                })
+                .listen("blur", () => {
+                    if (element.title_before !== undefined
+                        && element.title_before.title !== box.title) {
+                        this.history.add(this, [{
+                            kind: "box-update",
+                            from: element.title_before,
+                            to: box.toJSON(),
+                            vertices: { from: [], to: [] },
+                        }]);
+                    }
+                    delete element.title_before;
                 })
                 .add_to(header);
             header.listen(pointer_event("down"), (event) => {
                 if (event.button === 0 && !event.target.isContentEditable) {
                     event.preventDefault();
                     event.stopPropagation();
+                    this.select_box(box);
                     const vertices = this.freeform_vertices().filter((vertex) => {
                         return box.bounds.containsBounds(this.freeform_bounds_for(vertex));
                     });
@@ -885,6 +941,7 @@ class UI {
                         kind: "move",
                         origin: this.offset_from_event(event),
                         bounds: box.bounds.clone(),
+                        before: box.toJSON(),
                         vertices,
                         vertex_bounds: new Map(vertices.map((vertex) => [
                             vertex,
@@ -899,11 +956,13 @@ class UI {
                 if (event.button === 0) {
                     event.preventDefault();
                     event.stopPropagation();
+                    this.select_box(box);
                     this.box_drag = {
                         box,
                         kind: "resize",
                         origin: this.offset_from_event(event),
                         bounds: box.bounds.clone(),
+                        before: box.toJSON(),
                         vertices: [],
                         vertex_bounds: new Map(),
                     };
@@ -911,6 +970,11 @@ class UI {
             });
             this.canvas.add(element);
             this.box_elements.set(box.id, element);
+            element.listen(pointer_event("down"), (event) => {
+                if (event.button === 0) {
+                    this.select_box(box);
+                }
+            });
         }
         element.set_style({
             left: `${box.bounds.x}px`,
@@ -1028,6 +1092,7 @@ class UI {
         this.freeform_layout = new FreeformLayout({ snap: 16 });
         this.box_store = new BoxStore();
         this.box_elements = new Map();
+        this.selected_box_id = null;
         this.update_grid();
 
         // Clear the undo/redo history.
@@ -1105,8 +1170,26 @@ class UI {
         });
         document.addEventListener(pointer_event("up"), () => {
             if (this.box_drag !== null) {
+                const drag = this.box_drag;
                 this.box_drag = null;
-                this.autosave_diagram();
+                const after = drag.box.toJSON();
+                if (JSON.stringify(drag.before) !== JSON.stringify(after)) {
+                    this.history.add(this, [{
+                        kind: "box-update",
+                        from: drag.before,
+                        to: after,
+                        vertices: {
+                            from: Array.from(drag.vertex_bounds.entries()).map(([vertex, bounds]) => ({
+                                vertex,
+                                bounds,
+                            })),
+                            to: drag.vertices.map((vertex) => ({
+                                vertex,
+                                bounds: this.freeform_bounds_for(vertex),
+                            })),
+                        },
+                    }]);
+                }
             }
         });
 
@@ -3273,6 +3356,7 @@ class UI {
     /// Deselect a specific `cell`, or deselect all cells if `cell` is null.
     deselect(cell = null) {
         if (cell === null) {
+            this.deselect_box();
             for (cell of this.selection) {
                 cell.deselect();
             }
@@ -4231,6 +4315,8 @@ class History {
                 kind = {
                     create: "delete",
                     delete: "create",
+                    "box-create": "box-delete",
+                    "box-delete": "box-create",
                     // Self-inverse actions will be automatically preserved.
                 }[kind] || kind;
             }
@@ -4283,6 +4369,20 @@ class History {
                         ui.remove_cell(cell, this.present);
                     }
                     update_panel = true;
+                    break;
+                case "box-create":
+                    ui.restore_box(action.box);
+                    break;
+                case "box-delete":
+                    ui.delete_box(action.box.id);
+                    break;
+                case "box-update":
+                    ui.restore_box(action[to]);
+                    for (const vertex of action.vertices[to]) {
+                        ui.freeform_layout.set(vertex.vertex, vertex.bounds);
+                        vertex.vertex.render(ui);
+                        cells.add(vertex.vertex);
+                    }
                     break;
                 case "label":
                     for (const label of action.labels) {
@@ -7441,10 +7541,15 @@ class Toolbar {
                 { key: "Delete" },
             ],
             () => {
-                ui.history.add(ui, [{
-                    kind: "delete",
-                    cells: ui.quiver.transitive_dependencies(ui.selection),
-                }], true);
+                if (ui.selected_box_id !== null) {
+                    const box = ui.box_store.get(ui.selected_box_id);
+                    ui.history.add(ui, [{ kind: "box-delete", box: box.toJSON() }], true);
+                } else {
+                    ui.history.add(ui, [{
+                        kind: "delete",
+                        cells: ui.quiver.transitive_dependencies(ui.selection),
+                    }], true);
+                }
                 ui.panel.update(ui);
             },
         );
@@ -7837,7 +7942,8 @@ class Toolbar {
                 || [...ui.selection].some((cell) => !connected_components.has(cell)))
         );
         enable_if("deselect-all", ui.in_mode(...default_pan) && ui.selection.size > 0);
-        enable_if("delete", ui.in_mode(...default_pan) && ui.selection.size > 0);
+        enable_if("delete", ui.in_mode(...default_pan)
+            && (ui.selection.size > 0 || ui.selected_box_id !== null));
         enable_if("transform", ui.in_mode(...default_pan) && ui.quiver.all_cells().length > 0);
         enable_if("centre-view",
             ui.element.query_selector(".focus-point.focused")

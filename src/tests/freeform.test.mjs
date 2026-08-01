@@ -58,6 +58,9 @@ test("problem-bank boxes preserve bounds and ordered membership", () => {
         bounds: { x: 820, y: 120, width: 760, height: 960 },
         members: ["schema:R1", "schema:P6", "schema:P8"],
     }]);
+
+    assert.equal(boxes.delete("bank:delivery"), true);
+    assert.deepEqual(boxes.serialize(), []);
 });
 
 test("nodes may be inside or outside a box, but never overlap its border", () => {

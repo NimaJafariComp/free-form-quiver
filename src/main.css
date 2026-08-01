@@ -412,6 +412,7 @@ kbd {
 
 .vertex {
     position: absolute;
+    z-index: 2;
 }
 
 .ui.default .vertex {
@@ -440,7 +441,7 @@ kbd {
 .diagram-box {
     position: absolute;
     box-sizing: border-box;
-    z-index: -1;
+    z-index: 0;
     min-width: 180px;
     min-height: 120px;
 
@@ -450,6 +451,11 @@ kbd {
     box-shadow: 0 12px 30px hsl(250 35% 25% / 0.08);
     color: hsl(250 45% 28%);
     font: 600 14px Arial, sans-serif;
+}
+
+.diagram-box.selected {
+    outline: 3px solid var(--ui-focus);
+    outline-offset: 3px;
 }
 
 .dark-theme .diagram-box {

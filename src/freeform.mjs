@@ -187,6 +187,10 @@ export class BoxStore {
         return this.boxes.get(id) || null;
     }
 
+    delete(id) {
+        return this.boxes.delete(id);
+    }
+
     move(id, dx, dy) {
         const box = this.get(id);
         if (box === null) {
