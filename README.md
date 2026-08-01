@@ -19,6 +19,14 @@ learn how to use **quiver** efficiently, see the [tutorial](tutorial.md).
 
 Try **quiver** out: [q.uiver.app](https://q.uiver.app)
 
+## Freeform wiring-diagram mode
+
+New diagrams use an independent, freeform canvas: moving or resizing one object no longer changes
+the placement of any other object. Existing shared links retain Quiver's grid layout. The **Boxes**
+toolbar menu adds draggable, resizable rectangular **definition** and **problem bank** containers;
+their titles can be edited directly. This is intended for semantic wiring diagrams while preserving
+Quiver's existing vertices, arrows, labels, and exports.
+
 For tips on using **quiver** (including how to create and modify diagrams entirely using the
 keyboard), see the [**quiver** tutorial](tutorial.md).
 
@@ -78,6 +86,7 @@ wiki](https://github.com/varkor/quiver/wiki).
 
 ## Building
 Run `make` from the command line, and then open `src/index.html` in your favourite web browser.
+Run `make test` to check the freeform layout model and UI syntax.
 
 If this fails, you might be using an incompatible version of Make or Bash. In this case, you can
 manually download the [latest release](https://github.com/KaTeX/KaTeX/releases) of KaTeX and place

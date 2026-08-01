@@ -2,6 +2,7 @@ import { Arrow, ArrowStyle, CONSTANTS, Label, Shape } from "./arrow.mjs";
 import { CubicBezier } from "./curve.mjs";
 import { cancel, DOM, delay, pointer_event } from "./dom.mjs";
 import { Colour, Dimensions, Enum, Offset, Point, Position, clamp, deg_to_rad, mod, rad_to_deg, url_parameters } from "./ds.mjs";
+import { Bounds, BoxStore, FreeformLayout, RectangularBox } from "./freeform.mjs";
 import { Parser } from "./parser.mjs";
 import { Quiver, QuiverImportExport } from "./quiver.mjs";
 
@@ -528,14 +529,19 @@ UIMode.PointerMove = class extends UIMode {
         /// The group of cells that should be moved.
         this.selection = selection;
 
-        // Cells that are being moved are not considered part of the grid of cells
-        // and therefore do not interact with one another.
-        for (const cell of selection) {
-            ui.positions.delete(`${cell.position}`);
+        // Freeform items have independent bounds and may overlap. Legacy grid items
+        // are temporarily removed from the occupancy map while they move.
+        if (!ui.is_freeform()) {
+            for (const cell of selection) {
+                ui.positions.delete(`${cell.position}`);
+            }
         }
     }
 
     release(ui) {
+        if (ui.is_freeform()) {
+            return;
+        }
         // Make sure we're not trying to release any cells on top of existing ones.
         for (const cell of this.selection) {
             if (ui.positions.has(`${cell.position}`)) {
@@ -662,6 +668,18 @@ class UI {
         // The default (minimum) size of each column and row, if a width or height has not been
         // specified.
         this.default_cell_size = 128;
+        // The fork defaults to freeform placement. `?layout=grid` retains the
+        // original Quiver layout and its URL/base64 compatibility behaviour.
+        const initial_parameters = url_parameters();
+        this.layout_mode = initial_parameters.get("layout") === "freeform"
+            ? "freeform"
+            // Existing shared Quiver URLs are grid documents; a new empty
+            // document starts in the fork's freeform mode.
+            : (initial_parameters.has("q") ? "grid" : "freeform");
+        this.freeform_layout = new FreeformLayout({ snap: 16 });
+        this.box_store = new BoxStore();
+        this.box_elements = new Map();
+        this.box_drag = null;
         // The constraints on the width and height of each cell: we use the maximum constraint for
         // final width/height. We store these separately from `cell_width` and `cell_height` to
         // avoid recomputing the sizes every time, as we access them frequently.
@@ -758,11 +776,246 @@ class UI {
         this.start_new_history = this.settings.get("quiver.autosave");
     }
 
+    is_freeform() {
+        return this.layout_mode === "freeform";
+    }
+
+    freeform_bounds_for(vertex) {
+        let bounds = this.freeform_layout.get(vertex);
+        if (bounds === null) {
+            const centre = this.centre_offset_from_position(vertex.position);
+            bounds = new Bounds(
+                centre.x - this.default_cell_size / 2,
+                centre.y - this.default_cell_size / 2,
+                this.default_cell_size,
+                this.default_cell_size,
+            );
+            this.freeform_layout.set(vertex, bounds);
+        }
+        return bounds;
+    }
+
+    set_freeform_bounds(vertex, bounds) {
+        this.freeform_layout.set(vertex, bounds);
+        vertex.render(this);
+    }
+
+    freeform_vertices() {
+        return this.quiver.all_cells().filter((cell) => cell.is_vertex());
+    }
+
+    freeform_bounds_are_valid(bounds) {
+        return !this.freeform_layout.hasBorderCollision(bounds, this.box_store);
+    }
+
+    available_freeform_node_bounds(initial) {
+        if (this.freeform_bounds_are_valid(initial)) {
+            return initial;
+        }
+        for (let distance = 32; distance <= 2048; distance += 32) {
+            for (const [x, y] of [[distance, 0], [-distance, 0], [0, distance], [0, -distance]]) {
+                const candidate = initial.translate(x, y);
+                if (this.freeform_bounds_are_valid(candidate)) {
+                    return candidate;
+                }
+            }
+        }
+        throw new Error("unable to find a freeform position outside box borders");
+    }
+
+    initial_box_bounds() {
+        const initial = new Bounds(this.view.x - 260, this.view.y - 160, 520, 320);
+        const nodes = this.freeform_vertices().map((vertex) => this.freeform_bounds_for(vertex));
+        if (this.box_store.canPlace(initial, nodes)) {
+            return initial;
+        }
+        for (let distance = 64; distance <= 2048; distance += 64) {
+            for (const [x, y] of [[distance, 0], [-distance, 0], [0, distance], [0, -distance]]) {
+                const candidate = initial.translate(x, y);
+                if (this.box_store.canPlace(candidate, nodes)) {
+                    return candidate;
+                }
+            }
+        }
+        return initial;
+    }
+
+    add_rectangular_box(kind = "definition") {
+        if (!this.is_freeform()) {
+            return;
+        }
+        const index = this.box_store.boxes.size + 1;
+        const title = kind === "problem-bank" ? "Problem bank" : "Definition";
+        const box = new RectangularBox({
+            id: `box-${Date.now()}-${index}`,
+            title,
+            kind,
+            bounds: this.initial_box_bounds(),
+        });
+        this.box_store.add(box);
+        this.render_rectangular_box(box);
+        this.autosave_diagram();
+    }
+
+    render_rectangular_box(box) {
+        let element = this.box_elements.get(box.id);
+        if (element === undefined) {
+            element = new DOM.Div({
+                class: `diagram-box diagram-box--${box.kind}`,
+                role: "group",
+                "aria-label": `${box.kind === "problem-bank" ? "Problem bank" : "Definition"} box`,
+            });
+            const header = new DOM.Div({ class: "diagram-box__header" }).add_to(element);
+            new DOM.Element("span", { class: "diagram-box__title", contenteditable: "true" })
+                .add(box.title)
+                .listen("input", (event) => {
+                    box.title = event.currentTarget.textContent.trim();
+                    this.autosave_diagram();
+                })
+                .add_to(header);
+            header.listen(pointer_event("down"), (event) => {
+                if (event.button === 0 && !event.target.isContentEditable) {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    const vertices = this.freeform_vertices().filter((vertex) => {
+                        return box.bounds.containsBounds(this.freeform_bounds_for(vertex));
+                    });
+                    box.setMembers(vertices.map((vertex) => vertex.code));
+                    this.box_drag = {
+                        box,
+                        kind: "move",
+                        origin: this.offset_from_event(event),
+                        bounds: box.bounds.clone(),
+                        vertices,
+                        vertex_bounds: new Map(vertices.map((vertex) => [
+                            vertex,
+                            this.freeform_bounds_for(vertex),
+                        ])),
+                    };
+                }
+            });
+            const resize = new DOM.Div({ class: "diagram-box__resize", "aria-label": "Resize box" })
+                .add_to(element);
+            resize.listen(pointer_event("down"), (event) => {
+                if (event.button === 0) {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    this.box_drag = {
+                        box,
+                        kind: "resize",
+                        origin: this.offset_from_event(event),
+                        bounds: box.bounds.clone(),
+                        vertices: [],
+                        vertex_bounds: new Map(),
+                    };
+                }
+            });
+            this.canvas.add(element);
+            this.box_elements.set(box.id, element);
+        }
+        element.set_style({
+            left: `${box.bounds.x}px`,
+            top: `${box.bounds.y}px`,
+            width: `${box.bounds.width}px`,
+            height: `${box.bounds.height}px`,
+        });
+        element.query_selector(".diagram-box__title").replace(box.title);
+    }
+
+    update_box_drag(event) {
+        if (this.box_drag === null) {
+            return false;
+        }
+        const { box, kind, origin, bounds, vertices, vertex_bounds } = this.box_drag;
+        const delta = this.offset_from_event(event).sub(origin);
+        const candidate = kind === "move"
+            ? bounds.translate(delta.x, delta.y)
+            : new Bounds(bounds.x, bounds.y, Math.max(180, bounds.width + delta.x), Math.max(120, bounds.height + delta.y));
+        const moving = new Set(vertices);
+        const stationary_bounds = this.freeform_vertices()
+            .filter((vertex) => !moving.has(vertex))
+            .map((vertex) => this.freeform_bounds_for(vertex));
+        if (!this.box_store.canPlace(candidate, stationary_bounds)) {
+            return true;
+        }
+        box.bounds = candidate;
+        if (kind === "move") {
+            const moved_bounds = vertices.map((vertex) => ({
+                vertex,
+                bounds: vertex_bounds.get(vertex).translate(delta.x, delta.y),
+            }));
+            if (moved_bounds.some(({ bounds: node_bounds }) => {
+                return !this.freeform_bounds_are_valid(node_bounds);
+            })) {
+                box.bounds = bounds;
+                return true;
+            }
+            const moved = new Set();
+            for (const { vertex, bounds: node_bounds } of moved_bounds) {
+                this.freeform_layout.set(vertex, node_bounds);
+                vertex.render(this);
+                moved.add(vertex);
+            }
+            for (const cell of this.quiver.transitive_dependencies(moved)) {
+                cell.render(this);
+            }
+        }
+        this.render_rectangular_box(box);
+        return true;
+    }
+
+    freeform_payload() {
+        const items = {};
+        for (const vertex of this.quiver.cells[0] || []) {
+            items[vertex.code] = this.freeform_bounds_for(vertex).toJSON();
+        }
+        const bytes = new TextEncoder().encode(JSON.stringify({
+            version: 1,
+            items,
+            boxes: this.box_store.serialize(),
+        }));
+        return btoa(String.fromCharCode(...bytes));
+    }
+
+    restore_freeform_payload(payload) {
+        try {
+            const bytes = Uint8Array.from(atob(payload), (character) => character.charCodeAt(0));
+            const data = JSON.parse(new TextDecoder().decode(bytes));
+            if (data.version !== 1 || typeof data.items !== "object") {
+                throw new Error("invalid freeform layout payload");
+            }
+            for (const [code, bounds] of Object.entries(data.items)) {
+                const vertex = this.codes.get(code);
+                if (vertex !== undefined && vertex.is_vertex()) {
+                    this.set_freeform_bounds(vertex, bounds);
+                }
+            }
+            for (const box_data of data.boxes || []) {
+                const box = new RectangularBox(box_data);
+                this.box_store.add(box);
+                this.render_rectangular_box(box);
+            }
+        } catch (_) {
+            UI.display_error("The freeform layout could not be loaded.");
+        }
+    }
+
+    with_layout_payload(url) {
+        if (!this.is_freeform()) {
+            return url;
+        }
+        const separator = url.includes("#") ? "&" : "#";
+        return `${url}${separator}layout=freeform&freeform=${encodeURIComponent(this.freeform_payload())}`;
+    }
+
     /// Clear the current diagram. This also clears the history.
     clear_quiver() {
         // Clear the existing quiver.
         for (const cell of this.quiver.all_cells()) {
             cell.element.remove();
+        }
+        for (const element of this.box_elements.values()) {
+            element.remove();
         }
         this.quiver = new Quiver();
 
@@ -773,6 +1026,9 @@ class UI {
         this.cell_height_constraints = new Map();
         this.selection = new Set();
         this.positions = new Map();
+        this.freeform_layout = new FreeformLayout({ snap: 16 });
+        this.box_store = new BoxStore();
+        this.box_elements = new Map();
         this.update_grid();
 
         // Clear the undo/redo history.
@@ -835,10 +1091,24 @@ class UI {
 
         // Set the grid background.
         this.initialise_grid(this.element);
+        if (this.is_freeform()) {
+            this.grid.class_list.add("hidden");
+        }
 
         // Set up the element containing all the cells.
         this.container = new DOM.Div({ class: "container" }).add_to(this.element);
         this.canvas = new DOM.Div({ class: "canvas" }).add_to(this.container);
+        document.addEventListener(pointer_event("move"), (event) => {
+            if (this.update_box_drag(event)) {
+                event.preventDefault();
+            }
+        });
+        document.addEventListener(pointer_event("up"), () => {
+            if (this.box_drag !== null) {
+                this.box_drag = null;
+                this.autosave_diagram();
+            }
+        });
 
         // Set up the panel for viewing and editing cell data.
         this.panel.initialise(this);
@@ -1346,8 +1616,13 @@ class UI {
                     kind: "move",
                     displacements: Array.from(this.mode.selection).map((vertex) => ({
                         vertex,
-                        from: vertex.position.sub(this.mode.previous.sub(this.mode.origin)),
-                        to: vertex.position,
+                        from: this.is_freeform()
+                            ? this.freeform_bounds_for(vertex).translate(
+                                -this.mode.previous.sub(this.mode.origin).x,
+                                -this.mode.previous.sub(this.mode.origin).y,
+                            )
+                            : vertex.position.sub(this.mode.previous.sub(this.mode.origin)),
+                        to: this.is_freeform() ? this.freeform_bounds_for(vertex) : vertex.position,
                     })),
                 }]);
             }
@@ -1578,6 +1853,16 @@ class UI {
                 this.deselect();
             }
             const vertex = create_vertex(this.focus_position);
+            if (this.is_freeform()) {
+                const offset = this.offset_from_event(event);
+                const bounds = new Bounds(
+                    offset.x - this.default_cell_size / 2,
+                    offset.y - this.default_cell_size / 2,
+                    this.default_cell_size,
+                    this.default_cell_size,
+                );
+                this.set_freeform_bounds(vertex, this.available_freeform_node_bounds(bounds));
+            }
             this.select(vertex);
             return vertex;
         };
@@ -1777,6 +2062,34 @@ class UI {
             if (this.in_mode(UIMode.PointerMove)) {
                 // Prevent dragging from selecting random elements.
                 event.preventDefault();
+
+                if (this.is_freeform()) {
+                    const pointer = this.offset_from_event(event);
+                    const delta = pointer.sub(this.mode.previous);
+                    if (!delta.is_zero()) {
+                        const vertices = Array.from(this.mode.selection).filter((cell) => cell.is_vertex());
+                        const valid = vertices.every((vertex) => {
+                            return this.freeform_bounds_are_valid(
+                                this.freeform_bounds_for(vertex).translate(delta.x, delta.y),
+                            );
+                        });
+                        if (!valid) {
+                            return;
+                        }
+                        const moved = new Set();
+                        for (const vertex of vertices) {
+                            this.freeform_layout.move([vertex], delta.x, delta.y);
+                            vertex.render(this);
+                            moved.add(vertex);
+                        }
+                        for (const cell of this.quiver.transitive_dependencies(moved)) {
+                            cell.render(this);
+                        }
+                        this.mode.previous = pointer;
+                        this.panel.update(this);
+                    }
+                    return;
+                }
 
                 const new_position = (cell) => cell.position.add(position).sub(this.mode.previous);
 
@@ -2437,6 +2750,28 @@ class UI {
                 // Move vertices around.
                 const vertices = Array.from(this.selection).filter((cell) => cell.is_vertex());
                 if (vertices.length > 0) {
+                    if (this.is_freeform()) {
+                        const step = 16;
+                        const displacements = vertices.map((vertex) => {
+                            const from = this.freeform_bounds_for(vertex);
+                            return {
+                                vertex,
+                                from,
+                                to: from.translate(
+                                    position_delta.x * step,
+                                    position_delta.y * step,
+                                ),
+                            };
+                        });
+                        if (displacements.some(({ to }) => !this.freeform_bounds_are_valid(to))) {
+                            return;
+                        }
+                        this.history.add(this, [{
+                            kind: "move",
+                            displacements,
+                        }], true);
+                        return;
+                    }
                     // Find the first available space for all selected vertices, in the direction of
                     // the key press.
                     // We are guaranteed to eventually satisfy `all_new_positions_free`, because
@@ -2960,8 +3295,12 @@ class UI {
     add_cell(cell) {
         this.canvas.add(cell.element);
         if (cell.is_vertex()) {
-            this.positions.set(`${cell.position}`, cell);
-            cell.recalculate_size(this);
+            if (this.is_freeform()) {
+                this.freeform_bounds_for(cell);
+            } else {
+                this.positions.set(`${cell.position}`, cell);
+                cell.recalculate_size(this);
+            }
         }
         this.colour_picker.update_diagram_colours(this);
     }
@@ -2972,15 +3311,21 @@ class UI {
         const update_positions = new Set();
         for (const removed of this.quiver.remove(cell, when)) {
             if (removed.is_vertex()) {
-                this.positions.delete(`${removed.position}`);
-                this.cell_width_constraints.get(cell.position.x).delete(cell);
-                this.cell_height_constraints.get(cell.position.y).delete(cell);
-                update_positions.add(removed.position);
+                if (this.is_freeform()) {
+                    this.freeform_layout.delete(removed);
+                } else {
+                    this.positions.delete(`${removed.position}`);
+                    this.cell_width_constraints.get(cell.position.x).delete(cell);
+                    this.cell_height_constraints.get(cell.position.y).delete(cell);
+                    update_positions.add(removed.position);
+                }
             }
             this.deselect(removed);
             removed.element.remove();
         }
-        this.update_col_row_size(...update_positions);
+        if (!this.is_freeform()) {
+            this.update_col_row_size(...update_positions);
+        }
         this.colour_picker.update_diagram_colours(this);
     }
 
@@ -3652,8 +3997,9 @@ class UI {
             this.options(),
             this.definitions(),
         );
-        if (is_necessary || data !== window.location.href) {
-            history.pushState({}, "", data);
+        const url = this.with_layout_payload(data);
+        if (is_necessary || url !== window.location.href) {
+            history.pushState({}, "", url);
         }
     }
 
@@ -3671,8 +4017,9 @@ class UI {
                 this.options(),
                 this.definitions(),
             );
-            if (data !== window.location.href) {
-                history.replaceState({}, "", data);
+            const url = this.with_layout_payload(data);
+            if (url !== window.location.href) {
+                history.replaceState({}, "", url);
             }
         }
     }
@@ -3852,6 +4199,14 @@ class History {
             const cells = new Set();
             switch (kind) {
                 case "move":
+                    if (ui.is_freeform()) {
+                        for (const displacement of action.displacements) {
+                            ui.freeform_layout.set(displacement.vertex, displacement[to]);
+                            displacement.vertex.render(ui);
+                            cells.add(displacement.vertex);
+                        }
+                        break;
+                    }
                     // We perform these loops in sequence as cells may move
                     // directly into positions that have just been unoccupied.
                     for (const displacement of action.displacements) {
@@ -7053,6 +7408,22 @@ class Toolbar {
             },
         );
 
+        const boxes = add_subtoolbar("Boxes", "box");
+        add_action(
+            "Definition box",
+            "box",
+            [{ key: "B", shift: true, context: Shortcuts.SHORTCUT_PRIORITY.Defer }],
+            () => ui.add_rectangular_box("definition"),
+            boxes,
+        );
+        add_action(
+            "Problem bank",
+            "box",
+            [],
+            () => ui.add_rectangular_box("problem-bank"),
+            boxes,
+        );
+
         const transform = add_subtoolbar("Transform", "transform");
 
         const transform_actions = {
@@ -7856,7 +8227,9 @@ class Cell {
                         ui.switch_mode(
                             new UIMode.PointerMove(
                                 ui,
-                                ui.position_from_event(event),
+                                ui.is_freeform()
+                                    ? ui.offset_from_event(event)
+                                    : ui.position_from_event(event),
                                 move,
                             ),
                         );
@@ -8139,6 +8512,11 @@ export class Vertex extends Cell {
     /// Changes the vertex's position.
     /// This helper method ensures that column and row sizes are updated automatically.
     set_position(ui, position) {
+        if (ui.is_freeform()) {
+            const bounds = ui.freeform_bounds_for(this);
+            ui.set_freeform_bounds(this, new Bounds(position.x, position.y, bounds.width, bounds.height));
+            return;
+        }
         ui.cell_width_constraints.get(this.position.x).delete(this);
         ui.cell_height_constraints.get(this.position.y).delete(this);
         this.position = position;
@@ -8154,19 +8532,24 @@ export class Vertex extends Cell {
             this.element = new DOM.Div();
         }
 
-        // Position the vertex.
-        const offset = ui.offset_from_position(this.position);
+        // Position the vertex. Freeform vertices have independent bounds; grid
+        // vertices retain Quiver's original shared row/column layout.
+        const freeform = ui.is_freeform();
+        const bounds = freeform ? ui.freeform_bounds_for(this) : null;
+        const offset = freeform
+            ? new Offset(bounds.x, bounds.y)
+            : ui.offset_from_position(this.position);
         this.element.set_style({
             left: `${offset.x}px`,
             top: `${offset.y}px`,
         });
-        const centre_offset = offset.add(ui.cell_centre_at_position(this.position));
+        const centre_offset = freeform
+            ? new Offset(bounds.x + bounds.width / 2, bounds.y + bounds.height / 2)
+            : offset.add(ui.cell_centre_at_position(this.position));
         this.shape.origin = centre_offset;
-        // Shape width is controlled elsewhere.
 
-        // Resize according to the grid cell.
-        const cell_width = ui.cell_size(ui.cell_width, this.position.x);
-        const cell_height = ui.cell_size(ui.cell_height, this.position.y);
+        const cell_width = freeform ? bounds.width : ui.cell_size(ui.cell_width, this.position.x);
+        const cell_height = freeform ? bounds.height : ui.cell_size(ui.cell_height, this.position.y);
         this.element.set_style({
             width: `${cell_width}px`,
             height: `${cell_height}px`,
@@ -8199,8 +8582,8 @@ export class Vertex extends Cell {
         if (construct) {
             ui.panel.render_maths(ui, this);
         } else {
-            // The vertex may have moved, in which case we need to update the size of the grid cell
-            // in which the vertex now lives, as the grid cell may now need to be resized.
+            // A grid vertex may resize its row/column; a freeform vertex only
+            // resizes its own bounds.
             this.recalculate_size(ui);
         }
     }
@@ -8210,8 +8593,30 @@ export class Vertex extends Cell {
     recalculate_size(ui) {
         const label = this.element.query_selector(".label");
         const { offsetWidth, offsetHeight } = label.element;
-        ui.update_cell_size(this, offsetWidth, offsetHeight);
-        this.resize_content(ui, [offsetWidth, offsetHeight]);
+        if (ui.is_freeform()) {
+            const bounds = ui.freeform_bounds_for(this);
+            const content = this.content_size(ui, [offsetWidth, offsetHeight]);
+            const resized = new Bounds(
+                bounds.x,
+                bounds.y,
+                Math.max(bounds.width, content.width),
+                Math.max(bounds.height, content.height),
+            );
+            ui.freeform_layout.set(this, resized);
+            this.resize_content(ui, [offsetWidth, offsetHeight]);
+            this.element.set_style({
+                width: `${resized.width}px`,
+                height: `${resized.height}px`,
+            });
+            this.content_element.set_style({
+                left: `${resized.width / 2}px`,
+                top: `${resized.height / 2}px`,
+            });
+            this.shape.size = new Dimensions(resized.width, resized.height);
+        } else {
+            ui.update_cell_size(this, offsetWidth, offsetHeight);
+            this.resize_content(ui, [offsetWidth, offsetHeight]);
+        }
     }
 
     /// Get the size of the cell content.
@@ -8684,6 +9089,9 @@ document.addEventListener("DOMContentLoaded", () => {
             try {
                 // Decode the diagram.
                 QuiverImportExport.base64.import(ui, query_data.get("q"));
+                if (ui.is_freeform() && query_data.has("freeform")) {
+                    ui.restore_freeform_payload(query_data.get("freeform"));
+                }
                 // If there are directly embedded macros, prefer them, to avoid URL fetch races.
                 if (query_data.has("macros")) {
                     ++ui.macro_update_number;

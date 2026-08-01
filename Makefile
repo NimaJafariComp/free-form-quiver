@@ -1,9 +1,13 @@
-.PHONY: all service-worker dev release gh-pages serve cleanup
+.PHONY: all test service-worker dev release gh-pages serve cleanup
 
 # Ensure `cd` works properly by forcing everything to be executed in a single shell.
 .ONESHELL:
 
-all: src/KaTeX src/icon-192.png src/icon-512.png src/Workbox/workbox-window.prod.mjs
+all: src/KaTeX src/icon-192.png src/icon-512.png src/Workbox/workbox-window.prod.mjs service-worker
+
+test:
+	node --check src/ui.mjs
+	node --test src/tests/*.test.mjs
 
 # Vendor KaTeX dependencies.
 src/KaTeX:
@@ -21,15 +25,25 @@ src/Workbox/workbox-%:
 
 # Build service worker.
 service-worker: service-worker/build.js
-	cd $(dir $<)
-	if [ ! -z "$$NVM_DIR" ]; then . $$NVM_DIR/nvm.sh; fi
-	nvm use 20 && npm install && node build.js
+	cd $(dir $<) && node --version && npm ci && node build.js
 
 # Generate icons required by the webapp manifest. Requires ImageMagick.
 src/icon-512.png: src/icon.png
-	convert $< -background none -resize 512x512 $@
+	@if command -v convert >/dev/null 2>&1; then \
+		convert $< -background none -resize 512x512 $@; \
+	elif command -v sips >/dev/null 2>&1; then \
+		sips -z 512 512 $< --out $@ >/dev/null; \
+	else \
+		echo "ImageMagick (convert) or sips is required to generate $@" >&2; exit 1; \
+	fi
 src/icon-192.png: src/icon.png
-	convert $< -background none -resize 192x192 $@
+	@if command -v convert >/dev/null 2>&1; then \
+		convert $< -background none -resize 192x192 $@; \
+	elif command -v sips >/dev/null 2>&1; then \
+		sips -z 192 192 $< --out $@ >/dev/null; \
+	else \
+		echo "ImageMagick (convert) or sips is required to generate $@" >&2; exit 1; \
+	fi
 
 # Update the `dev` branch from `master`.
 dev:

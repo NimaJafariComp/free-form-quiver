@@ -428,6 +428,70 @@ kbd {
     text-align: center;
 }
 
+/* Freeform rectangular containers. They sit behind Quiver cells and make
+   reusable problem definitions legible without becoming connectable nodes. */
+.diagram-box {
+    position: absolute;
+    box-sizing: border-box;
+    z-index: -1;
+    min-width: 180px;
+    min-height: 120px;
+
+    border: 2px solid hsl(250 62% 48% / 0.78);
+    border-radius: 10px;
+    background: hsl(250 80% 98% / 0.72);
+    box-shadow: 0 12px 30px hsl(250 35% 25% / 0.08);
+    color: hsl(250 45% 28%);
+    font: 600 14px Arial, sans-serif;
+}
+
+.dark-theme .diagram-box {
+    border-color: hsl(250 75% 72% / 0.82);
+    background: hsl(250 36% 18% / 0.72);
+    color: hsl(250 75% 86%);
+    box-shadow: none;
+}
+
+.diagram-box--problem-bank {
+    border-style: solid;
+    border-color: hsl(8 72% 48% / 0.82);
+    background: hsl(8 80% 98% / 0.65);
+}
+
+.diagram-box__header {
+    display: flex;
+    align-items: center;
+    min-height: 30px;
+    padding: 0 11px;
+    border-bottom: 1px solid currentColor;
+    background: hsl(0 0% 100% / 0.46);
+    cursor: move;
+    user-select: none;
+}
+
+.dark-theme .diagram-box__header {
+    background: hsl(250 25% 12% / 0.46);
+}
+
+.diagram-box__title {
+    outline: none;
+    white-space: nowrap;
+}
+
+.diagram-box__title:focus-visible {
+    box-shadow: 0 0 0 2px var(--ui-focus);
+}
+
+.diagram-box__resize {
+    position: absolute;
+    right: 5px;
+    bottom: 5px;
+    width: 13px;
+    height: 13px;
+    cursor: nwse-resize;
+    background: linear-gradient(135deg, transparent 42%, currentColor 43% 54%, transparent 55%);
+}
+
 .grid:not(.hidden) + .container .vertex.empty:not(.selected) .content:not(:hover) {
     border: var(--cell-hover) 2px solid;
 }
@@ -1892,4 +1956,3 @@ body:has(select[name="renderer"] > option[value="katex"]:checked) .typst-only {
         color: hsl(0, 0%, 60%);
     }
 }
-
