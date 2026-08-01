@@ -310,6 +310,11 @@ kbd {
     color: hsla(0, 0%, 0%, 0.4);
 }
 
+/* Freeform diagrams never use the legacy grid-cell focus point. */
+.ui.freeform .focus-point {
+    display: none;
+}
+
 .dark-theme .focus-point {
     color: hsl(250 20% 60%);
 }

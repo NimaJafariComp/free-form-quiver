@@ -800,6 +800,43 @@ class UI {
         vertex.render(this);
     }
 
+    add_freeform_vertex() {
+        const occupied = new Set(this.freeform_vertices().map((vertex) => `${vertex.position}`));
+        let x = 0;
+        while (occupied.has(`${new Position(x, 0)}`)) {
+            ++x;
+        }
+        const label = {
+            "katex": "\\bullet",
+            "typst": "bullet",
+        }[this.settings.get("quiver.renderer")];
+        const vertex = new Vertex(this, label, new Position(x, 0));
+        const bounds = this.available_freeform_node_bounds(new Bounds(
+            this.view.x - this.default_cell_size / 2,
+            this.view.y - this.default_cell_size / 2,
+            this.default_cell_size,
+            this.default_cell_size,
+        ));
+        this.freeform_layout.set(vertex, bounds);
+        this.deselect();
+        this.history.add(this, [{ kind: "create", cells: new Set([vertex]) }], true);
+        this.select(vertex);
+    }
+
+    add_arrow_from_selection() {
+        const vertices = Array.from(this.selection).filter((cell) => cell.is_vertex());
+        if (vertices.length === 2) {
+            const edge = UIMode.Connect.create_edge(this, vertices[0], vertices[1]);
+            this.history.add(this, [{ kind: "create", cells: new Set([edge]) }], true);
+            this.deselect();
+            this.select(edge);
+        } else if (vertices.length === 1) {
+            const mode = new UIMode.Connect(this, vertices[0], false);
+            this.switch_mode(mode);
+            vertices[0].element.class_list.add("source");
+        }
+    }
+
     select_box(box) {
         this.deselect();
         if (this.selected_box_id !== null) {
@@ -1884,6 +1921,10 @@ class UI {
                         this.switch_mode(new UIMode.Pan("Alt"));
                     } else if (event.ctrlKey) {
                         this.switch_mode(new UIMode.Pan("Control"));
+                    } else if (this.is_freeform()) {
+                        // Freeform editing creates nodes exclusively from the
+                        // toolbar; clicking the canvas only clears selection.
+                        this.dismiss_pane();
                     } else {
                         this.dismiss_pane();
 
@@ -7500,6 +7541,20 @@ class Toolbar {
             },
         );
 
+        add_action(
+            "Add node",
+            "add-node",
+            [],
+            () => ui.add_freeform_vertex(),
+        );
+
+        add_action(
+            "Add arrow",
+            "add-arrow",
+            [],
+            () => ui.add_arrow_from_selection(),
+        );
+
         const select = add_subtoolbar("Select", "select");
 
         add_action(
@@ -7932,6 +7987,10 @@ class Toolbar {
         enable_if("undo", ui.in_mode(UIMode.KeyMove, ...default_pan) && ui.history.present !== 0);
         enable_if("redo", ui.in_mode(UIMode.KeyMove, ...default_pan)
             && ui.history.present < ui.history.actions.length);
+        enable_if("add-node", ui.is_freeform() && ui.in_mode(...default_pan));
+        const selected_vertices = Array.from(ui.selection).filter((cell) => cell.is_vertex());
+        enable_if("add-arrow", ui.is_freeform() && ui.in_mode(...default_pan)
+            && (selected_vertices.length === 1 || selected_vertices.length === 2));
         enable_if("select-all",
             ui.in_mode(...default_pan) && ui.selection.size < ui.quiver.all_cells().length);
         const connected_components = ui.quiver.connected_components(ui.selection);
