@@ -864,6 +864,21 @@ class UI {
         this.toolbar.update(this);
     }
 
+    /// The Add node tool owns the next pointer interaction, including clicks
+    /// on box controls. This lets the user place a node inside a bank instead
+    /// of selecting or dragging that bank first.
+    place_freeform_node_if_armed(event) {
+        if (!this.is_freeform() || !this.node_placement_active) return false;
+        event.preventDefault();
+        event.stopPropagation();
+        this.dismiss_pane();
+        this.add_freeform_vertex(this.offset_from_event(event));
+        this.node_placement_active = false;
+        this.element.class_list.remove("placing-node");
+        this.toolbar.update(this);
+        return true;
+    }
+
     freeform_vertex_symbol_size(vertex) {
         return vertex.freeform_symbol_size || 26;
     }
@@ -1092,6 +1107,7 @@ class UI {
                 .add_to(element);
             selection_surface.listen(pointer_event("down"), (event) => {
                 if (event.button === 0) {
+                    if (this.place_freeform_node_if_armed(event)) return;
                     event.preventDefault();
                     event.stopPropagation();
                     this.select_box(box);
@@ -1101,6 +1117,7 @@ class UI {
             new DOM.Element("span", { class: "diagram-box__title" }).add(box.title).add_to(header);
             header.listen(pointer_event("down"), (event) => {
                 if (event.button === 0) {
+                    if (this.place_freeform_node_if_armed(event)) return;
                     event.preventDefault();
                     event.stopPropagation();
                     this.select_box(box);
@@ -1123,6 +1140,7 @@ class UI {
                 .add_to(element);
             resize.listen(pointer_event("down"), (event) => {
                 if (event.button === 0) {
+                    if (this.place_freeform_node_if_armed(event)) return;
                     event.preventDefault();
                     event.stopPropagation();
                     this.select_box(box);
@@ -2122,13 +2140,7 @@ class UI {
                         this.switch_mode(new UIMode.Pan("Alt"));
                     } else if (event.ctrlKey) {
                         this.switch_mode(new UIMode.Pan("Control"));
-                    } else if (this.is_freeform() && this.node_placement_active) {
-                        event.preventDefault();
-                        this.dismiss_pane();
-                        this.add_freeform_vertex(this.offset_from_event(event));
-                        this.node_placement_active = false;
-                        this.element.class_list.remove("placing-node");
-                        this.toolbar.update(this);
+                    } else if (this.place_freeform_node_if_armed(event)) {
                         return;
                     } else if (this.is_freeform()) {
                         // Freeform editing has no grid focus point. Empty clicks

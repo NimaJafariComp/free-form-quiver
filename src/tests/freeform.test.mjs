@@ -119,6 +119,8 @@ test("freeform node placement is pointer-driven and symbol size is history-backe
     assert.match(ui, /set_selected_freeform_vertex_symbol/);
     assert.match(ui, /freeform_node_bounds_at\(centre\)/);
     assert.match(ui, /this\.freeform_node_size = 32/);
+    assert.match(ui, /place_freeform_node_if_armed\(event\)/);
+    assert.match(ui, /selection_surface\.listen\(pointer_event\("down"\)[\s\S]*place_freeform_node_if_armed/);
 });
 
 test("member nodes cross a box border atomically instead of stalling during drag", () => {
