@@ -1361,6 +1361,7 @@ class UI {
                 .add(this.panel.label_input)
                 .add(colour_indicator)
                 .listen(pointer_event("down"), (event) => event.stopPropagation())
+                .listen(pointer_event("up"), (event) => event.stopPropagation())
         );
         delay(() => {
             this.panel.label_input.parent.add(
@@ -4926,6 +4927,13 @@ class Panel {
         this.element.listen(pointer_event("down"), (event) => {
             if (event.button === 0) {
                 event.stopImmediatePropagation();
+            }
+        });
+        // Do not let the document-level canvas handler interpret a click on
+        // the inspector as a request to dismiss the current properties.
+        this.element.listen(pointer_event("up"), (event) => {
+            if (event.button === 0) {
+                event.stopPropagation();
             }
         });
 

@@ -108,3 +108,9 @@ test("selected boxes use the same properties input for title editing", () => {
     assert.match(ui, /kind: "box-update"/);
     assert.match(ui, /selected_box\.title = title/);
 });
+
+test("properties controls isolate pointer-up events from canvas dismissal", () => {
+    const ui = readFileSync(resolve("src/ui.mjs"), "utf8");
+    assert.match(ui, /inspector as a request[\s\S]*pointer_event\("up"\)/);
+    assert.match(ui, /label-input-container hidden[\s\S]*pointer_event\("up"\).*stopPropagation/);
+});
