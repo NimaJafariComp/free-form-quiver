@@ -3668,6 +3668,10 @@ class UI {
             if (this.is_freeform()) {
                 // Labels are annotations, not geometry: allow them to overflow
                 // the fixed vertex frame without moving any other diagram part.
+                // A legacy grid edit can have left a reduced inline font size on
+                // the element; clearing it is essential because the freeform
+                // label must always render at its natural KaTeX/Typst scale.
+                label.style.fontSize = "";
                 max_width = Infinity;
             } else {
                 max_width = this.cell_size(this.cell_width, cell.position.x) * MAX_LABEL_WIDTH;
@@ -6775,6 +6779,11 @@ class Panel {
                 // Render the label with KaTeX.
                 // Currently all errors are disabled, so we don't wrap this in a try-catch block.
                 KaTeX.then((katex) => {
+                    if (ui.is_freeform() && cell.is_vertex()) {
+                        // Never carry a scale-to-grid value into freeform mode.
+                        label.element.style.fontSize = "";
+                        label.element.style.maxWidth = "none";
+                    }
                     katex.render(
                         cell.label.replace(/\$/g, "\\$"),
                         label.element,

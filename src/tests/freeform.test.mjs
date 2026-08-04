@@ -2,6 +2,8 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { Bounds, BoxStore, FreeformLayout, RectangularBox } from "../freeform.mjs";
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
 
 test("moving a node changes only that node's independent bounds", () => {
     const layout = new FreeformLayout();
@@ -81,4 +83,11 @@ test("nodes may be inside or outside a box, but never overlap its border", () =>
     assert.equal(boxes.canPlace(new Bounds(220, 220, 100, 60), [
         new Bounds(180, 240, 80, 40),
     ]), false);
+});
+
+test("freeform labels have no scale-to-fit constraint", () => {
+    const ui = readFileSync(resolve("src/ui.mjs"), "utf8");
+    const css = readFileSync(resolve("src/main.css"), "utf8");
+    assert.match(ui, /ui\.is_freeform\(\) && cell\.is_vertex\(\)[\s\S]*fontSize = ""/);
+    assert.match(css, /\.ui\.freeform \.vertex \.label[\s\S]*max-width: none/);
 });

@@ -442,6 +442,16 @@ kbd {
     overflow: visible;
 }
 
+/* A freeform label is an independent annotation anchored at its node centre.
+   It never inherits a width constraint or a scale-to-fit rule from the old
+   grid-cell renderer. */
+.ui.freeform .vertex .label {
+    width: max-content;
+    max-width: none;
+    min-width: max-content;
+    font-size: 26px;
+}
+
 /* Freeform rectangular containers. They sit behind Quiver cells and make
    reusable problem definitions legible without becoming connectable nodes. */
 .diagram-box {
