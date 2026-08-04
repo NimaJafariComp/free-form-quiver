@@ -107,6 +107,7 @@ test("freeform labels have no scale-to-fit constraint", () => {
     assert.match(ui, /const content_size = freeform[\s\S]*ui\.freeform_vertex_symbol_size\(this\)/);
     assert.match(css, /\.ui:not\(\.freeform\) \.vertex\.selected \.content/);
     assert.match(css, /\.ui\.freeform \.vertex \.label \{[\s\S]*pointer-events: auto/);
+    assert.match(ui, /ui\.is_freeform\(\) && ui\.in_mode\(UIMode\.PointerMove\)/);
 });
 
 test("freeform node placement is pointer-driven and symbol size is history-backed", () => {

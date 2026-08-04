@@ -8900,6 +8900,14 @@ class Cell {
                 if (this.element.class_list.contains("pending")) {
                     this.element.class_list.remove("pending");
 
+                    // In freeform mode, a vertex (or its overflowing label)
+                    // is dragged directly. Connections are created through the
+                    // explicit Add arrow control, not by leaving the old grid
+                    // cell's content area mid-drag.
+                    if (ui.is_freeform() && ui.in_mode(UIMode.PointerMove)) {
+                        return;
+                    }
+
                     // Start connecting the node.
                     const mode = new UIMode.Connect(ui, this, false);
                     if (
