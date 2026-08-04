@@ -2,6 +2,7 @@ import { delay } from "./dom.mjs";
 import { Colour, Encodable, Point, Position, mod } from "./ds.mjs";
 import { CONSTANTS } from "./arrow.mjs";
 import { Parser } from "./parser.mjs";
+import { freeform_tikz } from "./freeform-export.mjs";
 import { Edge, Vertex } from "./ui.mjs";
 
 /// A directed n-pseudograph, in which (k + 1)-cells can connect k-cells.
@@ -233,6 +234,10 @@ export class Quiver {
         switch (format) {
             case "tikz-cd":
                 return QuiverImportExport.tikz_cd.export(this, settings, options, definitions);
+            case "freeform-tikz":
+                return freeform_tikz(options.freeform_scene || { nodes: [], edges: [], boxes: [] }, {
+                    source_url: options.freeform_source_url,
+                });
             case "fletcher":
                 return QuiverExport.fletcher.export(this, settings, options, definitions);
             case "base64":

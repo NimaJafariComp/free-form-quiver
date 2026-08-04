@@ -3,6 +3,7 @@ import { CubicBezier } from "./curve.mjs";
 import { cancel, DOM, delay, pointer_event } from "./dom.mjs";
 import { Colour, Dimensions, Enum, Offset, Point, Position, clamp, deg_to_rad, mod, rad_to_deg, url_parameters } from "./ds.mjs";
 import { Bounds, BoxStore, FreeformLayout, RectangularBox } from "./freeform.mjs";
+import { download_png, download_svg } from "./freeform-export.mjs";
 import { Parser } from "./parser.mjs";
 import { Quiver, QuiverImportExport } from "./quiver.mjs";
 
@@ -1182,8 +1183,65 @@ class UI {
             macro_text: this.macro_text,
             dimensions: this.diagram_size(),
             sep: this.panel.sep,
-            scale
+            scale,
+            freeform_scene: this.is_freeform() ? this.freeform_scene() : null,
+            freeform_source_url: this.is_freeform() ? window.location.href : "",
         };
+    }
+
+    /// The canonical export input for all freeform formats.  It records canvas geometry only;
+    /// the optional accessibility grid and old integer cell positions are deliberately absent.
+    freeform_scene(include_styles = false) {
+        const colour = (value) => value?.css?.() || "#111";
+        const nodes = Array.from(this.quiver.cells[0] || []).map((vertex) => {
+            const content = vertex.content_element?.element;
+            const label = vertex.element.query_selector(".label").element;
+            const style = content ? getComputedStyle(content) : null;
+            return {
+                id: vertex.code,
+                bounds: this.freeform_bounds_for(vertex).toJSON(),
+                label: vertex.label,
+                label_html: label?.innerHTML || "",
+                colour: colour(vertex.label_colour),
+                frame: {
+                    background: style?.backgroundColor || "transparent",
+                    border: style?.borderColor || "none",
+                    radius: parseFloat(style?.borderRadius || "0") || 0,
+                },
+            };
+        });
+        const edges = Array.from(this.quiver.all_cells()).filter((cell) => cell.is_edge()).map((edge) => ({
+            source: edge.source.code,
+            target: edge.target.code,
+            label: edge.label,
+            label_html: edge.arrow.label.element?.innerHTML || "",
+            // Arrow's own SVG is already the exact browser path, including Quiver's full style
+            // set, masks, decorations, curves, loops, shortening, and higher cells.
+            svg_markup: edge.arrow.svg.element?.outerHTML || "",
+            options: JSON.parse(JSON.stringify(edge.options)),
+            colour: colour(edge.options.colour),
+            level: edge.level,
+        }));
+        const styles = include_styles ? Array.from(document.styleSheets).flatMap((sheet) => {
+            try { return Array.from(sheet.cssRules).map((rule) => rule.cssText); } catch (_) { return []; }
+        }).join("\n") : "";
+        return { version: 1, nodes, edges, boxes: this.box_store.serialize(), styles };
+    }
+
+    freeform_export_filename() {
+        return "quiver-freeform";
+    }
+
+    export_freeform_svg() {
+        download_svg(this.freeform_scene(true), this.freeform_export_filename());
+    }
+
+    async export_freeform_png(scale = 2) {
+        try {
+            await download_png(this.freeform_scene(true), this.freeform_export_filename(), { scale });
+        } catch (error) {
+            UI.display_error(`PNG export failed: ${error.message}`);
+        }
     }
 
     initialise() {
@@ -5605,13 +5663,13 @@ class Panel {
                         }
                     }
 
-                    const dependencies = kind === "export" && format === "tikz-cd" ?
+                    const dependencies = kind === "export" && ["tikz-cd", "freeform-tikz"].includes(format) ?
                         Array.from(metadata.dependencies) : [];
                     if (dependencies.length !== 0) {
                         if (unsupported_items.length !== 0) {
                             warning.add(new DOM.Element("br"));
                         }
-                        warning.add("The exported ").add(new DOM.Code("tikz-cd"))
+                        warning.add("The exported ").add(new DOM.Code(format))
                             .add(" diagram relies upon additional packages " +
                             " that you may have to install for the diagram to render " +
                             "correctly:");
@@ -6363,7 +6421,7 @@ class Panel {
             { key: "E", modifier: true, context: Shortcuts.SHORTCUT_PRIORITY.Always },
             () => {
                 if (ui.settings.get("quiver.renderer") === "katex") {
-                    display_port_pane("export", "tikz-cd");
+                    display_port_pane("export", ui.is_freeform() ? "freeform-tikz" : "tikz-cd");
                 }
             },
         ).set_attributes({ class: "katex-only" });
@@ -6377,6 +6435,11 @@ class Panel {
                 }
             }
         ).set_attributes({ class: "typst-only" });
+        const png_scale = new DOM.Select(
+            [["1", "1×"], ["2", "2×"], ["3", "3×"], ["4", "4×"]],
+            "2",
+            { title: "PNG export scale" },
+        );
 
         // Create the `<select>` for the current maths renderer.
         const renderer_select = new DOM.Select(
@@ -6449,7 +6512,12 @@ class Panel {
                   display_port_pane("export", "html");
               })
         ).add(export_to_latex)
-        .add(export_to_typst);
+        .add(export_to_typst)
+        .add(new DOM.Element("button").add("SVG")
+            .listen("click", () => ui.export_freeform_svg()))
+        .add(png_scale)
+        .add(new DOM.Element("button").add("PNG")
+            .listen("click", () => { ui.export_freeform_png(Number(png_scale.element.value)); }));
 
         // Prevent propagation of pointer events when interacting with the global options.
         this.global.listen(pointer_event("down"), (event) => {

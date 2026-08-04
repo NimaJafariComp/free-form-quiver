@@ -13,3 +13,9 @@ This package is subject to the MIT License.
 
 This package is maintained by varkor (https://github.com/varkor). The repository and issue tracker
 can be found at https://github.com/varkor/quiver.
+
+## Freeform exports
+
+`freeform-quiver.sty` is the companion package for the fork's absolute-coordinate
+freeform TikZ export. Place it beside your `.tex` file and load it with
+`\usepackage{freeform-quiver}`. It depends on the CTAN `quiver` package and TikZ.

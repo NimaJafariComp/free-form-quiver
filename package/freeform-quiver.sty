@@ -1,0 +1,29 @@
+%% Freeform companion styles for exports from the freeform Quiver editor.
+%% This package deliberately uses absolute TikZ coordinates instead of tikz-cd's matrix.
+\NeedsTeXFormat{LaTeX2e}
+\ProvidesPackage{freeform-quiver}[2026/08/04 Absolute-coordinate Quiver diagrams]
+\RequirePackage{tikz}
+\RequirePackage{quiver}
+\usetikzlibrary{arrows.meta,decorations.pathmorphing,decorations.markings,calc}
+
+\tikzset{
+  qv arrow/.style={line width=.45pt, >=Stealth},
+  qv node/.style={draw=none, fill=none, inner sep=0pt, outer sep=0pt, align=center},
+  qv problem-bank/.style={draw=violet!70!black, rounded corners=2mm, line width=.6pt},
+  qv definition/.style={draw=blue!65!black, rounded corners=2mm, line width=.6pt}
+}
+
+%% #1 name, #2/#3 centre, #4/#5 fixed frame dimensions, #6 maths label.
+%% The minipage fixes the frame so labels do not participate in placement calculations.
+\newcommand{\freeformquivernode}[6]{%
+  \pgfmathsetlengthmacro{\qvnodewidth}{#4*0.75pt}%
+  \pgfmathsetlengthmacro{\qvnodeheight}{#5*0.75pt}%
+  \node[qv node, minimum width=\qvnodewidth, minimum height=\qvnodeheight] (#1) at (#2,#3) {\makebox[0pt][c]{\(#6\)}};%
+}
+
+%% #1/#2 top-left, #3/#4 extent, #5 title, #6 kind.
+\newcommand{\freeformquiverbox}[6]{%
+  \draw[qv #6] (#1,#2) rectangle ++(#3,#4);%
+  \node[anchor=north west, font=\bfseries, inner sep=3pt] at (#1,#2) {#5};%
+  \draw[qv #6] (#1,{#2+40}) -- ++(#3,0);%
+}
