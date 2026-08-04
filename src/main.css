@@ -452,6 +452,11 @@ kbd {
     max-width: none;
     min-width: max-content;
     font-size: 26px;
+    /* Labels deliberately overflow their symbol-sized hit area. Make that
+       visible annotation participate in the same pointer handling as its
+       parent node, so users can select or drag it by its text. */
+    pointer-events: auto;
+    cursor: move;
 }
 
 /* Freeform rectangular containers. They sit behind Quiver cells and make
