@@ -8887,6 +8887,22 @@ class Cell {
 
                     ui.panel.defocus_inputs();
 
+                    // The content element owns pointer events (including a
+                    // freeform label that overflows the symbol). Start the
+                    // direct freeform move here rather than relying on the
+                    // outer vertex listener, which this handler intentionally
+                    // stops from receiving the event.
+                    if (ui.is_freeform() && this.is_vertex() && ui.selection.has(this)) {
+                        const vertices = new Set(Array.from(ui.selection)
+                            .filter((cell) => cell.is_vertex()));
+                        ui.switch_mode(new UIMode.PointerMove(
+                            ui,
+                            ui.offset_from_event(event),
+                            vertices,
+                        ));
+                        return;
+                    }
+
                     // We won't start a new connection immediately, because that will hide
                     // the toolbar prematurely. Instead, we'll add a `.pending` class, which
                     // will then convert to a connection if the pointer leaves the element
@@ -8968,6 +8984,15 @@ class Cell {
                     if (was_previously_selected) {
                         ui.panel.focus_label_input();
                     }
+                } else if (ui.is_freeform() && ui.in_mode(UIMode.PointerMove)
+                    && ui.mode.selection.has(this)
+                    && ui.mode.previous.sub(ui.mode.origin).is_zero()
+                    && was_previously_selected
+                ) {
+                    // The document-level pointer-up handler ends the direct
+                    // move immediately after this listener. Preserve Quiver's
+                    // second-click-to-edit behaviour for a stationary click.
+                    ui.panel.focus_label_input();
                 }
 
                 if (ui.in_mode(UIMode.Connect)) {
