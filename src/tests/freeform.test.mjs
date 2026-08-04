@@ -121,6 +121,7 @@ test("freeform node placement is pointer-driven and symbol size is history-backe
     assert.match(ui, /this\.freeform_node_size = 32/);
     assert.match(ui, /place_freeform_node_if_armed\(event\)/);
     assert.match(ui, /selection_surface\.listen\(pointer_event\("down"\)[\s\S]*place_freeform_node_if_armed/);
+    assert.match(ui, /this\.freeform_layout\.set\(vertex, bounds\);\s*\/\/ The constructor[\s\S]*vertex\.render\(this\);/);
 });
 
 test("member nodes cross a box border atomically instead of stalling during drag", () => {
@@ -145,6 +146,7 @@ test("properties controls isolate pointer-up events from canvas dismissal", () =
     assert.match(ui, /inspector as a request[\s\S]*pointer_event\("up"\)/);
     assert.match(ui, /label-input-container hidden[\s\S]*pointer_event\("up"\).*stopPropagation/);
     assert.match(ui, /this\.label_input\.listen\(pointer_event\("down"\), \(event\) => \{\s*event\.stopImmediatePropagation\(\);/);
+    assert.match(ui, /event\.target\.closest\("\.label-input-container"\) !== null/);
 });
 
 test("box artwork remains behind nodes while box controls remain reachable", () => {

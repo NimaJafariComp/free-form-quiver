@@ -843,6 +843,10 @@ class UI {
         const vertex = new Vertex(this, label, new Position(x, 0));
         const bounds = this.freeform_node_bounds_at(centre);
         this.freeform_layout.set(vertex, bounds);
+        // The constructor renders once before its freeform bounds are known.
+        // Render again after placement so the first frame uses the pointer
+        // coordinates rather than its temporary legacy grid position.
+        vertex.render(this);
         const owner = Array.from(this.box_store.boxes.values()).find((box) => {
             return box.bounds.containsBounds(bounds);
         });
@@ -2094,6 +2098,10 @@ class UI {
         });
 
         document.addEventListener(pointer_event("up"), (event) => {
+            if (event.target instanceof Element
+                && event.target.closest(".label-input-container") !== null) {
+                return;
+            }
             if (event.button === 0) {
                 if (event.pointerType !== "touch") {
                     if (this.in_mode(UIMode.Pan)) {
@@ -2131,6 +2139,10 @@ class UI {
         this.reposition_focus_point(Position.zero());
 
         this.element.listen(pointer_event("down"), (event) => {
+            if (event.target instanceof Element
+                && event.target.closest(".label-input-container") !== null) {
+                return;
+            }
             if (event.button === 0) {
                 // Usually, if `Alt` or `Control` have been held we will have already switched to
                 // the Pan mode. However, if the window is not in focus, they will not have been
