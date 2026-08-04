@@ -88,7 +88,15 @@ test("nodes may be inside or outside a box, but never overlap its border", () =>
 test("freeform labels have no scale-to-fit constraint", () => {
     const ui = readFileSync(resolve("src/ui.mjs"), "utf8");
     const css = readFileSync(resolve("src/main.css"), "utf8");
-    assert.match(ui, /ui\.is_freeform\(\) && cell\.is_vertex\(\)[\s\S]*fontSize = ""/);
+    assert.match(ui, /freeform_vertex_symbol_size\(cell\)/);
     assert.match(css, /\.ui\.freeform \.vertex \.label[\s\S]*max-width: none/);
     assert.match(css, /\.ui\.freeform \.vertex\.selected \.content[\s\S]*background: transparent/);
+});
+
+test("freeform node placement is pointer-driven and symbol size is history-backed", () => {
+    const ui = readFileSync(resolve("src/ui.mjs"), "utf8");
+    assert.match(ui, /arm_freeform_node_placement\(\)/);
+    assert.match(ui, /add_freeform_vertex\(this\.offset_from_event\(event\)\)/);
+    assert.match(ui, /kind: "freeform-symbol-size"/);
+    assert.match(ui, /\{ key: "N"/);
 });

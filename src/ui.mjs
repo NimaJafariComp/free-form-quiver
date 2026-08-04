@@ -678,6 +678,9 @@ class UI {
         this.box_elements = new Map();
         this.box_drag = null;
         this.selected_box_id = null;
+        // The Add node tool places its next vertex at the next pointer location.
+        // It replaces Quiver's historical grid focus-point creation behaviour.
+        this.node_placement_active = false;
         // The constraints on the width and height of each cell: we use the maximum constraint for
         // final width/height. We store these separately from `cell_width` and `cell_height` to
         // avoid recomputing the sizes every time, as we access them frequently.
@@ -801,7 +804,7 @@ class UI {
         vertex.render(this);
     }
 
-    add_freeform_vertex() {
+    add_freeform_vertex(centre = this.view) {
         const occupied = new Set(this.freeform_vertices().map((vertex) => `${vertex.position}`));
         let x = 0;
         while (occupied.has(`${new Position(x, 0)}`)) {
@@ -813,8 +816,8 @@ class UI {
         }[this.settings.get("quiver.renderer")];
         const vertex = new Vertex(this, label, new Position(x, 0));
         const bounds = this.available_freeform_node_bounds(new Bounds(
-            this.view.x - this.default_cell_size / 2,
-            this.view.y - this.default_cell_size / 2,
+            centre.x - this.default_cell_size / 2,
+            centre.y - this.default_cell_size / 2,
             this.default_cell_size,
             this.default_cell_size,
         ));
@@ -822,6 +825,42 @@ class UI {
         this.deselect();
         this.history.add(this, [{ kind: "create", cells: new Set([vertex]) }], true);
         this.select(vertex);
+        return vertex;
+    }
+
+    arm_freeform_node_placement() {
+        if (!this.is_freeform()) return;
+        this.node_placement_active = !this.node_placement_active;
+        this.element.class_list.toggle("placing-node", this.node_placement_active);
+        this.toolbar.update(this);
+    }
+
+    freeform_vertex_symbol_size(vertex) {
+        return vertex.freeform_symbol_size || 26;
+    }
+
+    set_freeform_vertex_symbol_size(vertex, size) {
+        vertex.freeform_symbol_size = Math.max(12, Math.min(128, size));
+        vertex.element.query_selector(".label").set_style({
+            fontSize: `${vertex.freeform_symbol_size}px`,
+        });
+        vertex.recalculate_size(this);
+        for (const edge of this.quiver.transitive_dependencies([vertex], true)) {
+            edge.render(this);
+        }
+    }
+
+    resize_selected_freeform_vertex_symbols(delta) {
+        const vertices = Array.from(this.selection).filter((cell) => cell.is_vertex());
+        if (vertices.length === 0) return;
+        this.history.add(this, [{
+            kind: "freeform-symbol-size",
+            sizes: vertices.map((vertex) => ({
+                vertex,
+                from: this.freeform_vertex_symbol_size(vertex),
+                to: Math.max(12, Math.min(128, this.freeform_vertex_symbol_size(vertex) + delta)),
+            })),
+        }], true);
     }
 
     add_arrow_from_selection() {
@@ -1068,10 +1107,13 @@ class UI {
     freeform_payload() {
         const items = {};
         for (const vertex of this.quiver.cells[0] || []) {
-            items[vertex.code] = this.freeform_bounds_for(vertex).toJSON();
+            items[vertex.code] = {
+                bounds: this.freeform_bounds_for(vertex).toJSON(),
+                symbol_size: this.freeform_vertex_symbol_size(vertex),
+            };
         }
         const bytes = new TextEncoder().encode(JSON.stringify({
-            version: 1,
+            version: 2,
             items,
             boxes: this.box_store.serialize(),
         }));
@@ -1082,13 +1124,17 @@ class UI {
         try {
             const bytes = Uint8Array.from(atob(payload), (character) => character.charCodeAt(0));
             const data = JSON.parse(new TextDecoder().decode(bytes));
-            if (data.version !== 1 || typeof data.items !== "object") {
+            if (![1, 2].includes(data.version) || typeof data.items !== "object") {
                 throw new Error("invalid freeform layout payload");
             }
-            for (const [code, bounds] of Object.entries(data.items)) {
+            for (const [code, item] of Object.entries(data.items)) {
                 const vertex = this.codes.get(code);
                 if (vertex !== undefined && vertex.is_vertex()) {
+                    const bounds = item.bounds || item;
                     this.set_freeform_bounds(vertex, bounds);
+                    if (item.symbol_size !== undefined) {
+                        this.set_freeform_vertex_symbol_size(vertex, item.symbol_size);
+                    }
                 }
             }
             for (const box_data of data.boxes || []) {
@@ -1197,11 +1243,13 @@ class UI {
             const content = vertex.content_element?.element;
             const label = vertex.element.query_selector(".label").element;
             const style = content ? getComputedStyle(content) : null;
+            const label_style = label ? getComputedStyle(label) : null;
             return {
                 id: vertex.code,
                 bounds: this.freeform_bounds_for(vertex).toJSON(),
                 label: vertex.label,
                 label_html: label?.innerHTML || "",
+                font_size: parseFloat(label_style?.fontSize || "26") || 26,
                 colour: colour(vertex.label_colour),
                 frame: {
                     background: style?.backgroundColor || "transparent",
@@ -1979,9 +2027,17 @@ class UI {
                         this.switch_mode(new UIMode.Pan("Alt"));
                     } else if (event.ctrlKey) {
                         this.switch_mode(new UIMode.Pan("Control"));
+                    } else if (this.is_freeform() && this.node_placement_active) {
+                        event.preventDefault();
+                        this.dismiss_pane();
+                        this.add_freeform_vertex(this.offset_from_event(event));
+                        this.node_placement_active = false;
+                        this.element.class_list.remove("placing-node");
+                        this.toolbar.update(this);
+                        return;
                     } else if (this.is_freeform()) {
-                        // Freeform editing creates nodes exclusively from the
-                        // toolbar; clicking the canvas only clears selection.
+                        // Freeform editing has no grid focus point. Empty clicks
+                        // only clear selection unless the Add node tool is armed.
                         this.dismiss_pane();
                     } else {
                         this.dismiss_pane();
@@ -3671,7 +3727,7 @@ class UI {
                 // A legacy grid edit can have left a reduced inline font size on
                 // the element; clearing it is essential because the freeform
                 // label must always render at its natural KaTeX/Typst scale.
-                label.style.fontSize = "";
+                label.style.fontSize = `${this.freeform_vertex_symbol_size(cell)}px`;
                 max_width = Infinity;
             } else {
                 max_width = this.cell_size(this.cell_width, cell.position.x) * MAX_LABEL_WIDTH;
@@ -4502,6 +4558,11 @@ class History {
                         ui.freeform_layout.set(vertex.vertex, vertex.bounds);
                         vertex.vertex.render(ui);
                         cells.add(vertex.vertex);
+                    }
+                    break;
+                case "freeform-symbol-size":
+                    for (const size of action.sizes) {
+                        ui.set_freeform_vertex_symbol_size(size.vertex, size[to]);
                     }
                     break;
                 case "label":
@@ -6781,7 +6842,8 @@ class Panel {
                 KaTeX.then((katex) => {
                     if (ui.is_freeform() && cell.is_vertex()) {
                         // Never carry a scale-to-grid value into freeform mode.
-                        label.element.style.fontSize = "";
+                        label.element.style.fontSize =
+                            `${ui.freeform_vertex_symbol_size(cell)}px`;
                         label.element.style.maxWidth = "none";
                     }
                     katex.render(
@@ -7638,8 +7700,22 @@ class Toolbar {
         add_action(
             "Add node",
             "add-node",
-            [],
-            () => ui.add_freeform_vertex(),
+            [{ key: "N", context: Shortcuts.SHORTCUT_PRIORITY.Defer }],
+            () => ui.arm_freeform_node_placement(),
+        );
+
+        add_action(
+            "Node smaller",
+            "node-smaller",
+            [{ key: "[", context: Shortcuts.SHORTCUT_PRIORITY.Defer }],
+            () => ui.resize_selected_freeform_vertex_symbols(-4),
+        );
+
+        add_action(
+            "Node larger",
+            "node-larger",
+            [{ key: "]", context: Shortcuts.SHORTCUT_PRIORITY.Defer }],
+            () => ui.resize_selected_freeform_vertex_symbols(4),
         );
 
         add_action(
@@ -8083,6 +8159,10 @@ class Toolbar {
             && ui.history.present < ui.history.actions.length);
         enable_if("add-node", ui.is_freeform() && ui.in_mode(...default_pan));
         const selected_vertices = Array.from(ui.selection).filter((cell) => cell.is_vertex());
+        enable_if("node-smaller", ui.is_freeform() && ui.in_mode(...default_pan)
+            && selected_vertices.length > 0);
+        enable_if("node-larger", ui.is_freeform() && ui.in_mode(...default_pan)
+            && selected_vertices.length > 0);
         enable_if("add-arrow", ui.is_freeform() && ui.in_mode(...default_pan)
             && (selected_vertices.length === 1 || selected_vertices.length === 2));
         enable_if("select-all",

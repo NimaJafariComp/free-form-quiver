@@ -421,6 +421,10 @@ kbd {
     z-index: 2;
 }
 
+.ui.freeform.placing-node .canvas {
+    cursor: crosshair;
+}
+
 .ui.default .vertex {
     cursor: move;
 }
@@ -472,7 +476,7 @@ kbd {
     box-sizing: border-box;
     /* Keep only the box controls above diagram nodes. The container itself
        remains transparent to pointer events, so nodes inside stay editable. */
-    z-index: 3;
+    z-index: 1;
     pointer-events: none;
     min-width: 180px;
     min-height: 120px;
