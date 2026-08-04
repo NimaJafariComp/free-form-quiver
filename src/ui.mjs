@@ -901,6 +901,8 @@ class UI {
         }
         this.selected_box_id = box.id;
         this.box_elements.get(box.id)?.class_list.add("selected");
+        this.panel.update(this);
+        this.panel.label_input.parent.class_list.remove("hidden");
         this.toolbar.update(this);
     }
 
@@ -999,30 +1001,9 @@ class UI {
                 "aria-label": `${box.kind === "problem-bank" ? "Problem bank" : "Definition"} box`,
             });
             const header = new DOM.Div({ class: "diagram-box__header" }).add_to(element);
-            new DOM.Element("span", { class: "diagram-box__title", contenteditable: "true" })
-                .add(box.title)
-                .listen("focus", () => {
-                    element.title_before = box.toJSON();
-                    this.select_box(box);
-                })
-                .listen("input", (event) => {
-                    box.title = event.currentTarget.textContent.trim();
-                })
-                .listen("blur", () => {
-                    if (element.title_before !== undefined
-                        && element.title_before.title !== box.title) {
-                        this.history.add(this, [{
-                            kind: "box-update",
-                            from: element.title_before,
-                            to: box.toJSON(),
-                            vertices: { from: [], to: [] },
-                        }]);
-                    }
-                    delete element.title_before;
-                })
-                .add_to(header);
+            new DOM.Element("span", { class: "diagram-box__title" }).add(box.title).add_to(header);
             header.listen(pointer_event("down"), (event) => {
-                if (event.button === 0 && !event.target.isContentEditable) {
+                if (event.button === 0) {
                     event.preventDefault();
                     event.stopPropagation();
                     this.select_box(box);
@@ -4981,6 +4962,22 @@ class Panel {
         // Handle label interaction: update the labels of the selected cells when
         // the input field is modified.
         this.label_input.listen("input", () => {
+            const selected_box = ui.selected_box_id === null ? null : ui.box_store.get(ui.selected_box_id);
+            if (selected_box !== null) {
+                const title = this.label_input.element.value;
+                if (selected_box.title === title) return;
+                const from = selected_box.toJSON();
+                selected_box.title = title;
+                const to = selected_box.toJSON();
+                ui.render_rectangular_box(selected_box);
+                ui.history.add(ui, [{
+                    kind: "box-update",
+                    from,
+                    to,
+                    vertices: { from: [], to: [] },
+                }]);
+                return;
+            }
             if (!ui.in_mode(UIMode.Command)) {
                 const selection = Array.from(ui.selection).filter((cell) => {
                     return cell.label !== this.label_input.element.value;
@@ -6929,6 +6926,20 @@ class Panel {
 
     /// Update the panel state (i.e. enable/disable fields as relevant).
     update(ui) {
+        const selected_box = ui.selected_box_id === null ? null : ui.box_store.get(ui.selected_box_id);
+        if (this.port === null && selected_box !== null) {
+            this.label_input.element.disabled = false;
+            this.label_input.element.value = selected_box.title;
+            this.label_input.set_attributes({ "aria-label": "Box title", placeholder: "Box title" });
+            this.label_input.parent.query_selector(".input-mode").replace("Box title");
+            this.label_input.parent.class_list.remove("hidden");
+            ui.element.query_selector(".label-input-container .colour-indicator")
+                .class_list.add("disabled");
+            this.update_position();
+            return;
+        }
+        this.label_input.set_attributes({ "aria-label": "Label", placeholder: "" });
+        this.label_input.parent.query_selector(".input-mode").replace("");
         const label_alignments = this.element.query_selector_all('input[name="label_alignment"]');
 
         // Multiple selection is always permitted, so the following code must provide sensible
@@ -7302,7 +7313,7 @@ class Panel {
         if (!ui.selection_contains_edge()) {
             this.hide(ui);
         }
-        if (ui.selection.size === 0) {
+        if (ui.selection.size === 0 && ui.selected_box_id === null) {
             this.label_input.parent.class_list.add("hidden");
             ui.colour_picker.close();
         }

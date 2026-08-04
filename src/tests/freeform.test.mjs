@@ -101,3 +101,10 @@ test("freeform node placement is pointer-driven and symbol size is history-backe
     assert.match(ui, /\{ key: "N"/);
     assert.match(ui, /set_selected_freeform_vertex_symbol/);
 });
+
+test("selected boxes use the same properties input for title editing", () => {
+    const ui = readFileSync(resolve("src/ui.mjs"), "utf8");
+    assert.match(ui, /this\.label_input\.parent\.query_selector\("\.input-mode"\)\.replace\("Box title"\)/);
+    assert.match(ui, /kind: "box-update"/);
+    assert.match(ui, /selected_box\.title = title/);
+});
