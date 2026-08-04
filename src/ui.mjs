@@ -1085,6 +1085,18 @@ class UI {
                 role: "group",
                 "aria-label": `${box.kind === "problem-bank" ? "Problem bank" : "Definition"} box`,
             });
+            // The box body is selectable in its empty areas, but is deliberately
+            // below vertices. This keeps a bank easy to select even when it
+            // contains nodes, without stealing clicks from those nodes.
+            const selection_surface = new DOM.Div({ class: "diagram-box__selection-surface" })
+                .add_to(element);
+            selection_surface.listen(pointer_event("down"), (event) => {
+                if (event.button === 0) {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    this.select_box(box);
+                }
+            });
             const header = new DOM.Div({ class: "diagram-box__header" }).add_to(element);
             new DOM.Element("span", { class: "diagram-box__title" }).add(box.title).add_to(header);
             header.listen(pointer_event("down"), (event) => {

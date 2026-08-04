@@ -141,8 +141,11 @@ test("properties controls isolate pointer-up events from canvas dismissal", () =
 });
 
 test("box artwork remains behind nodes while box controls remain reachable", () => {
+    const ui = readFileSync(resolve("src/ui.mjs"), "utf8");
     const css = readFileSync(resolve("src/main.css"), "utf8");
     assert.match(css, /\.diagram-box \{[\s\S]*z-index: auto/);
+    assert.match(ui, /diagram-box__selection-surface/);
+    assert.match(css, /\.diagram-box__selection-surface \{[\s\S]*z-index: 1/);
     assert.match(css, /\.diagram-box__header \{[\s\S]*z-index: 3/);
     assert.match(css, /\.diagram-box__resize \{[\s\S]*z-index: 3/);
 });
