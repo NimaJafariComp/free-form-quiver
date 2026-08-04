@@ -530,6 +530,15 @@ UIMode.PointerMove = class extends UIMode {
         /// The group of cells that should be moved.
         this.selection = selection;
 
+        /// Keep the actual starting geometry for freeform moves. A member may
+        /// leave a box in one atomic step, so pointer displacement alone is
+        /// not necessarily enough to reconstruct the original bounds for undo.
+        this.freeform_initial_bounds = ui.is_freeform()
+            ? new Map(Array.from(selection)
+                .filter((cell) => cell.is_vertex())
+                .map((vertex) => [vertex, ui.freeform_bounds_for(vertex)]))
+            : null;
+
         // Freeform items have independent bounds and may overlap. Legacy grid items
         // are temporarily removed from the occupancy map while they move.
         if (!ui.is_freeform()) {
@@ -989,6 +998,36 @@ class UI {
 
     freeform_bounds_are_valid(bounds) {
         return !this.freeform_layout.hasBorderCollision(bounds, this.box_store);
+    }
+
+    /// A member leaving its own group crosses the border atomically. This keeps
+    /// the invariant that a node never rests on a box border, without making a
+    /// pointer drag appear to freeze at that border.
+    resolve_freeform_drag_bounds(vertex, proposed, delta) {
+        if (this.freeform_bounds_are_valid(proposed)) return proposed;
+        const owner = Array.from(this.box_store.boxes.values()).find((box) => {
+            return box.members.includes(vertex.code)
+                && box.bounds.intersects(proposed)
+                && !box.bounds.containsBounds(proposed);
+        });
+        if (owner === undefined) return null;
+        let escaped = proposed;
+        if (Math.abs(delta.x) >= Math.abs(delta.y)) {
+            escaped = new Bounds(
+                delta.x >= 0 ? owner.bounds.x + owner.bounds.width : owner.bounds.x - proposed.width,
+                proposed.y,
+                proposed.width,
+                proposed.height,
+            );
+        } else {
+            escaped = new Bounds(
+                proposed.x,
+                delta.y >= 0 ? owner.bounds.y + owner.bounds.height : owner.bounds.y - proposed.height,
+                proposed.width,
+                proposed.height,
+            );
+        }
+        return this.freeform_bounds_are_valid(escaped) ? escaped : null;
     }
 
     available_freeform_node_bounds(initial) {
@@ -1887,10 +1926,7 @@ class UI {
                     displacements: Array.from(this.mode.selection).map((vertex) => ({
                         vertex,
                         from: this.is_freeform()
-                            ? this.freeform_bounds_for(vertex).translate(
-                                -this.mode.previous.sub(this.mode.origin).x,
-                                -this.mode.previous.sub(this.mode.origin).y,
-                            )
+                            ? this.mode.freeform_initial_bounds.get(vertex)
                             : vertex.position.sub(this.mode.previous.sub(this.mode.origin)),
                         to: this.is_freeform() ? this.freeform_bounds_for(vertex) : vertex.position,
                     })),
@@ -2036,6 +2072,7 @@ class UI {
                     } else if (this.in_mode(UIMode.PointerMove)) {
                         commit_move_event();
                         this.switch_mode(UIMode.default);
+                        this.panel.update(this);
                     } else if (this.in_mode(UIMode.Connect)) {
                         // Stop trying to connect cells when the pointer is released outside
                         // the `<body>`.
@@ -2361,17 +2398,20 @@ class UI {
                     const delta = pointer.sub(this.mode.previous);
                     if (!delta.is_zero()) {
                         const vertices = Array.from(this.mode.selection).filter((cell) => cell.is_vertex());
-                        const valid = vertices.every((vertex) => {
-                            return this.freeform_bounds_are_valid(
+                        const moved_bounds = vertices.map((vertex) => ({
+                            vertex,
+                            bounds: this.resolve_freeform_drag_bounds(
+                                vertex,
                                 this.freeform_bounds_for(vertex).translate(delta.x, delta.y),
-                            );
-                        });
-                        if (!valid) {
+                                delta,
+                            ),
+                        }));
+                        if (moved_bounds.some(({ bounds }) => bounds === null)) {
                             return;
                         }
                         const moved = new Set();
-                        for (const vertex of vertices) {
-                            this.freeform_layout.move([vertex], delta.x, delta.y);
+                        for (const { vertex, bounds } of moved_bounds) {
+                            this.freeform_layout.set(vertex, bounds);
                             vertex.render(this);
                             moved.add(vertex);
                         }
@@ -2379,7 +2419,6 @@ class UI {
                             cell.render(this);
                         }
                         this.mode.previous = pointer;
-                        this.panel.update(this);
                     }
                     return;
                 }

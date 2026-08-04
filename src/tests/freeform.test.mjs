@@ -117,6 +117,15 @@ test("freeform node placement is pointer-driven and symbol size is history-backe
     assert.match(ui, /this\.freeform_node_size = 32/);
 });
 
+test("member nodes cross a box border atomically instead of stalling during drag", () => {
+    const ui = readFileSync(resolve("src/ui.mjs"), "utf8");
+    assert.match(ui, /resolve_freeform_drag_bounds\(vertex, proposed, delta\)/);
+    assert.match(ui, /owner\.bounds\.x \+ owner\.bounds\.width/);
+    assert.match(ui, /moved_bounds\.some\(\(\{ bounds \}\) => bounds === null\)/);
+    assert.match(ui, /freeform_initial_bounds = ui\.is_freeform\(\)/);
+    assert.match(ui, /this\.mode\.freeform_initial_bounds\.get\(vertex\)/);
+});
+
 test("selected boxes use the same properties input for title editing", () => {
     const ui = readFileSync(resolve("src/ui.mjs"), "utf8");
     assert.match(ui, /this\.label_input\.parent\.query_selector\("\.input-mode"\)\.replace\("Box title"\)/);
