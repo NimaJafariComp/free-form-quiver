@@ -9144,6 +9144,17 @@ export class Vertex extends Cell {
             left: `${cell_width / 2}px`,
             top: `${cell_height / 2}px`,
         });
+        // A freeform vertex is only an anchor and its label. Quiver's legacy
+        // hover/selection rules are card-like, so clear those visual frame
+        // properties inline as well as in the freeform stylesheet.
+        if (freeform) {
+            this.content_element.set_style({
+                background: "transparent",
+                border: "0",
+                "border-radius": "0",
+                "box-shadow": "none",
+            });
+        }
 
         if (construct) {
             ui.panel.render_maths(ui, this);
