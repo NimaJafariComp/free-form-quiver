@@ -207,6 +207,35 @@ export class BoxStore {
         box.bounds = Bounds.from(bounds);
     }
 
+    membersOf(id) {
+        return Array.from(this.get(id)?.members || []);
+    }
+
+    /// A node can belong to one box. Containment is visual; membership is explicit.
+    addMember(id, nodeId) {
+        const box = this.get(id);
+        if (box === null || this.boxes.values().some((other) => {
+            return other.id !== id && other.members.includes(nodeId);
+        })) {
+            return false;
+        }
+        if (!box.members.includes(nodeId)) box.members.push(nodeId);
+        return true;
+    }
+
+    removeMember(id, nodeId) {
+        const box = this.get(id);
+        if (box === null || !box.members.includes(nodeId)) return false;
+        box.members = box.members.filter((member) => member !== nodeId);
+        return true;
+    }
+
+    canPlaceBox(bounds, exceptId = null) {
+        return Array.from(this.boxes.values()).every((box) => {
+            return box.id === exceptId || !box.bounds.intersects(bounds);
+        });
+    }
+
     hasNodeBorderCollision(nodeBounds) {
         return Array.from(this.boxes.values()).some((box) => {
             return box.bounds.intersects(nodeBounds) && !box.bounds.containsBounds(nodeBounds);

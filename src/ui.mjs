@@ -669,6 +669,8 @@ class UI {
         // The default (minimum) size of each column and row, if a width or height has not been
         // specified.
         this.default_cell_size = 128;
+        // A freeform vertex is a point-like wiring anchor, not a legacy grid cell.
+        this.freeform_node_size = 32;
         // This fork is deliberately grid-free. Imported Quiver documents use
         // their original integer coordinates only as initial freeform positions;
         // no URL parameter can re-enable shared row/column sizing.
@@ -789,10 +791,10 @@ class UI {
         if (bounds === null) {
             const centre = this.centre_offset_from_position(vertex.position);
             bounds = new Bounds(
-                centre.x - this.default_cell_size / 2,
-                centre.y - this.default_cell_size / 2,
-                this.default_cell_size,
-                this.default_cell_size,
+                centre.x - this.freeform_node_size / 2,
+                centre.y - this.freeform_node_size / 2,
+                this.freeform_node_size,
+                this.freeform_node_size,
             );
             this.freeform_layout.set(vertex, bounds);
         }
@@ -802,6 +804,21 @@ class UI {
     set_freeform_bounds(vertex, bounds) {
         this.freeform_layout.set(vertex, bounds);
         vertex.render(this);
+    }
+
+    freeform_node_bounds_at(centre) {
+        const size = this.freeform_node_size;
+        const initial = new Bounds(centre.x - size / 2, centre.y - size / 2, size, size);
+        const owner = Array.from(this.box_store.boxes.values()).find((box) => box.bounds.contains(centre));
+        if (owner !== undefined && owner.bounds.width >= size && owner.bounds.height >= size) {
+            return new Bounds(
+                clamp(owner.bounds.x, initial.x, owner.bounds.x + owner.bounds.width - size),
+                clamp(owner.bounds.y, initial.y, owner.bounds.y + owner.bounds.height - size),
+                size,
+                size,
+            );
+        }
+        return this.available_freeform_node_bounds(initial);
     }
 
     add_freeform_vertex(centre = this.view) {
@@ -815,15 +832,18 @@ class UI {
             "typst": "bullet",
         }[this.settings.get("quiver.renderer")];
         const vertex = new Vertex(this, label, new Position(x, 0));
-        const bounds = this.available_freeform_node_bounds(new Bounds(
-            centre.x - this.default_cell_size / 2,
-            centre.y - this.default_cell_size / 2,
-            this.default_cell_size,
-            this.default_cell_size,
-        ));
+        const bounds = this.freeform_node_bounds_at(centre);
         this.freeform_layout.set(vertex, bounds);
+        const owner = Array.from(this.box_store.boxes.values()).find((box) => {
+            return box.bounds.containsBounds(bounds);
+        });
+        const membership = owner === undefined ? [] : (() => {
+            const from = owner.toJSON();
+            this.box_store.addMember(owner.id, vertex.code);
+            return [{ kind: "box-update", from, to: owner.toJSON(), vertices: { from: [], to: [] } }];
+        })();
         this.deselect();
-        this.history.add(this, [{ kind: "create", cells: new Set([vertex]) }], true);
+        this.history.add(this, [{ kind: "create", cells: new Set([vertex]) }, ...membership], true);
         this.select(vertex);
         return vertex;
     }
@@ -941,6 +961,32 @@ class UI {
         return this.quiver.all_cells().filter((cell) => cell.is_vertex());
     }
 
+    box_member_vertices(box) {
+        return this.box_store.membersOf(box.id).map((code) => this.codes.get(code))
+            .filter((vertex) => vertex !== undefined && vertex.is_vertex());
+    }
+
+    /// Membership only ever leaves automatically: expanding/surrounding an
+    /// external node does not adopt it, while moving a member outside releases it.
+    prune_box_members(overrides = new Map()) {
+        const actions = [];
+        for (const box of this.box_store.boxes.values()) {
+            const from = box.toJSON();
+            box.setMembers(box.members.filter((code) => {
+                const vertex = this.codes.get(code);
+                return vertex !== undefined && vertex.is_vertex()
+                    && !this.quiver.deleted.has(vertex)
+                    && box.bounds.containsBounds(overrides.get(vertex)
+                        || this.freeform_bounds_for(vertex));
+            }));
+            if (JSON.stringify(from.members) !== JSON.stringify(box.members)) {
+                actions.push({ kind: "box-update", from, to: box.toJSON(),
+                    vertices: { from: [], to: [] } });
+            }
+        }
+        return actions;
+    }
+
     freeform_bounds_are_valid(bounds) {
         return !this.freeform_layout.hasBorderCollision(bounds, this.box_store);
     }
@@ -963,13 +1009,13 @@ class UI {
     initial_box_bounds() {
         const initial = new Bounds(this.view.x - 260, this.view.y - 160, 520, 320);
         const nodes = this.freeform_vertices().map((vertex) => this.freeform_bounds_for(vertex));
-        if (this.box_store.canPlace(initial, nodes)) {
+        if (this.box_store.canPlace(initial, nodes) && this.box_store.canPlaceBox(initial)) {
             return initial;
         }
         for (let distance = 64; distance <= 2048; distance += 64) {
             for (const [x, y] of [[distance, 0], [-distance, 0], [0, distance], [0, -distance]]) {
                 const candidate = initial.translate(x, y);
-                if (this.box_store.canPlace(candidate, nodes)) {
+            if (this.box_store.canPlace(candidate, nodes) && this.box_store.canPlaceBox(candidate)) {
                     return candidate;
                 }
             }
@@ -1007,10 +1053,7 @@ class UI {
                     event.preventDefault();
                     event.stopPropagation();
                     this.select_box(box);
-                    const vertices = this.freeform_vertices().filter((vertex) => {
-                        return box.bounds.containsBounds(this.freeform_bounds_for(vertex));
-                    });
-                    box.setMembers(vertices.map((vertex) => vertex.code));
+                    const vertices = this.box_member_vertices(box);
                     this.box_drag = {
                         box,
                         kind: "move",
@@ -1073,7 +1116,8 @@ class UI {
         const stationary_bounds = this.freeform_vertices()
             .filter((vertex) => !moving.has(vertex))
             .map((vertex) => this.freeform_bounds_for(vertex));
-        if (!this.box_store.canPlace(candidate, stationary_bounds)) {
+        if (!this.box_store.canPlace(candidate, stationary_bounds)
+            || !this.box_store.canPlaceBox(candidate, box.id)) {
             return true;
         }
         box.bounds = candidate;
@@ -1098,6 +1142,7 @@ class UI {
                 cell.render(this);
             }
         }
+        if (kind === "resize") this.prune_box_members();
         this.render_rectangular_box(box);
         return true;
     }
@@ -1837,7 +1882,7 @@ class UI {
         const commit_move_event = () => {
             if (!this.mode.previous.sub(this.mode.origin).is_zero()) {
                 // We only want to commit the move event if it actually did moved things.
-                this.history.add(this, [{
+                const actions = [{
                     kind: "move",
                     displacements: Array.from(this.mode.selection).map((vertex) => ({
                         vertex,
@@ -1849,7 +1894,9 @@ class UI {
                             : vertex.position.sub(this.mode.previous.sub(this.mode.origin)),
                         to: this.is_freeform() ? this.freeform_bounds_for(vertex) : vertex.position,
                     })),
-                }]);
+                }];
+                if (this.is_freeform()) actions.push(...this.prune_box_members());
+                this.history.add(this, actions);
             }
         };
 
@@ -3020,10 +3067,13 @@ class UI {
                         if (displacements.some(({ to }) => !this.freeform_bounds_are_valid(to))) {
                             return;
                         }
+                        const membership_actions = this.prune_box_members(new Map(
+                            displacements.map(({ vertex, to }) => [vertex, to]),
+                        ));
                         this.history.add(this, [{
                             kind: "move",
                             displacements,
-                        }], true);
+                        }, ...membership_actions], true);
                         return;
                     }
                     // Find the first available space for all selected vertices, in the direction of
@@ -4896,6 +4946,7 @@ class Panel {
 
         // The label input element.
         this.label_input = null;
+        this.box_title_before = null;
 
         // Buttons and options affecting the entire diagram (e.g. export, macros).
         this.global = null;
@@ -4974,16 +5025,8 @@ class Panel {
             if (selected_box !== null) {
                 const title = this.label_input.element.value;
                 if (selected_box.title === title) return;
-                const from = selected_box.toJSON();
                 selected_box.title = title;
-                const to = selected_box.toJSON();
                 ui.render_rectangular_box(selected_box);
-                ui.history.add(ui, [{
-                    kind: "box-update",
-                    from,
-                    to,
-                    vertices: { from: [], to: [] },
-                }]);
                 return;
             }
             if (!ui.in_mode(UIMode.Command)) {
@@ -5097,6 +5140,23 @@ class Panel {
             } else {
                 ui.switch_mode(UIMode.default);
             }
+        });
+        this.label_input.listen("focus", () => {
+            const box = ui.selected_box_id === null ? null : ui.box_store.get(ui.selected_box_id);
+            this.box_title_before = box?.toJSON() || null;
+        });
+        this.label_input.listen("blur", () => {
+            const box = ui.selected_box_id === null ? null : ui.box_store.get(ui.selected_box_id);
+            if (box !== null && this.box_title_before !== null
+                && this.box_title_before.title !== box.title) {
+                ui.history.add(ui, [{
+                    kind: "box-update",
+                    from: this.box_title_before,
+                    to: box.toJSON(),
+                    vertices: { from: [], to: [] },
+                }]);
+            }
+            this.box_title_before = null;
         });
 
         const add_button = (label, key, action) => {
@@ -7827,10 +7887,22 @@ class Toolbar {
                     const box = ui.box_store.get(ui.selected_box_id);
                     ui.history.add(ui, [{ kind: "box-delete", box: box.toJSON() }], true);
                 } else {
+                    const cells = ui.quiver.transitive_dependencies(ui.selection);
+                    const removed_vertices = new Set(Array.from(cells).filter((cell) => cell.is_vertex()));
+                    const membership_actions = Array.from(ui.box_store.boxes.values()).flatMap((box) => {
+                        const from = box.toJSON();
+                        box.setMembers(box.members.filter((code) => {
+                            return !removed_vertices.has(ui.codes.get(code));
+                        }));
+                        return JSON.stringify(from.members) === JSON.stringify(box.members) ? [] : [{
+                            kind: "box-update", from, to: box.toJSON(),
+                            vertices: { from: [], to: [] },
+                        }];
+                    });
                     ui.history.add(ui, [{
                         kind: "delete",
-                        cells: ui.quiver.transitive_dependencies(ui.selection),
-                    }], true);
+                        cells,
+                    }, ...membership_actions], true);
                 }
                 ui.panel.update(ui);
             },

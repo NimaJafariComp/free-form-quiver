@@ -65,6 +65,19 @@ test("problem-bank boxes preserve bounds and ordered membership", () => {
     assert.deepEqual(boxes.serialize(), []);
 });
 
+test("box membership is explicit and boxes cannot overlap", () => {
+    const boxes = new BoxStore();
+    boxes.add(new RectangularBox({ id: "bank-a", bounds: new Bounds(0, 0, 300, 200) }));
+    boxes.add(new RectangularBox({ id: "bank-b", bounds: new Bounds(360, 0, 300, 200) }));
+
+    assert.equal(boxes.addMember("bank-a", "inside-a"), true);
+    assert.deepEqual(boxes.membersOf("bank-a"), ["inside-a"]);
+    assert.equal(boxes.addMember("bank-b", "inside-a"), false);
+    assert.equal(boxes.removeMember("bank-a", "inside-a"), true);
+    assert.equal(boxes.canPlaceBox(new Bounds(200, 40, 100, 100)), false);
+    assert.equal(boxes.canPlaceBox(new Bounds(700, 40, 100, 100)), true);
+});
+
 test("nodes may be inside or outside a box, but never overlap its border", () => {
     const box = new RectangularBox({
         id: "bank:delivery",
@@ -100,6 +113,8 @@ test("freeform node placement is pointer-driven and symbol size is history-backe
     assert.match(ui, /kind: "freeform-symbol-size"/);
     assert.match(ui, /\{ key: "N"/);
     assert.match(ui, /set_selected_freeform_vertex_symbol/);
+    assert.match(ui, /freeform_node_bounds_at\(centre\)/);
+    assert.match(ui, /this\.freeform_node_size = 32/);
 });
 
 test("selected boxes use the same properties input for title editing", () => {
@@ -107,10 +122,18 @@ test("selected boxes use the same properties input for title editing", () => {
     assert.match(ui, /this\.label_input\.parent\.query_selector\("\.input-mode"\)\.replace\("Box title"\)/);
     assert.match(ui, /kind: "box-update"/);
     assert.match(ui, /selected_box\.title = title/);
+    assert.match(ui, /this\.label_input\.listen\("blur"[\s\S]*box_title_before/);
 });
 
 test("properties controls isolate pointer-up events from canvas dismissal", () => {
     const ui = readFileSync(resolve("src/ui.mjs"), "utf8");
     assert.match(ui, /inspector as a request[\s\S]*pointer_event\("up"\)/);
     assert.match(ui, /label-input-container hidden[\s\S]*pointer_event\("up"\).*stopPropagation/);
+});
+
+test("box artwork remains behind nodes while box controls remain reachable", () => {
+    const css = readFileSync(resolve("src/main.css"), "utf8");
+    assert.match(css, /\.diagram-box \{[\s\S]*z-index: auto/);
+    assert.match(css, /\.diagram-box__header \{[\s\S]*z-index: 3/);
+    assert.match(css, /\.diagram-box__resize \{[\s\S]*z-index: 3/);
 });

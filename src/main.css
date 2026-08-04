@@ -476,7 +476,8 @@ kbd {
     box-sizing: border-box;
     /* Keep only the box controls above diagram nodes. The container itself
        remains transparent to pointer events, so nodes inside stay editable. */
-    z-index: 1;
+    /* The box body is below nodes; its controls carry their own z-index. */
+    z-index: auto;
     pointer-events: none;
     min-width: 180px;
     min-height: 120px;
@@ -508,6 +509,8 @@ kbd {
 }
 
 .diagram-box__header {
+    position: relative;
+    z-index: 3;
     display: flex;
     align-items: center;
     min-height: 30px;
@@ -534,6 +537,7 @@ kbd {
 
 .diagram-box__resize {
     position: absolute;
+    z-index: 3;
     right: 5px;
     bottom: 5px;
     width: 13px;
