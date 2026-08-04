@@ -863,6 +863,23 @@ class UI {
         }], true);
     }
 
+    set_selected_freeform_vertex_symbol(symbol) {
+        const vertices = Array.from(this.selection).filter((cell) => cell.is_vertex());
+        if (vertices.length === 0) return;
+        const labels = {
+            katex: { bullet: "\\bullet", square: "\\square", circle: "\\circ" },
+            typst: { bullet: "bullet", square: "square", circle: "circle" },
+        }[this.settings.get("quiver.renderer")];
+        this.history.add(this, [{
+            kind: "label",
+            labels: vertices.map((vertex) => ({
+                cell: vertex,
+                from: vertex.label,
+                to: labels[symbol],
+            })),
+        }], true);
+    }
+
     add_arrow_from_selection() {
         const vertices = Array.from(this.selection).filter((cell) => cell.is_vertex());
         if (vertices.length === 2) {
@@ -7719,6 +7736,27 @@ class Toolbar {
         );
 
         add_action(
+            "Bullet node",
+            "node-bullet",
+            [],
+            () => ui.set_selected_freeform_vertex_symbol("bullet"),
+        );
+
+        add_action(
+            "Square node",
+            "node-square",
+            [],
+            () => ui.set_selected_freeform_vertex_symbol("square"),
+        );
+
+        add_action(
+            "Circle node",
+            "node-circle",
+            [],
+            () => ui.set_selected_freeform_vertex_symbol("circle"),
+        );
+
+        add_action(
             "Add arrow",
             "add-arrow",
             [],
@@ -8162,6 +8200,12 @@ class Toolbar {
         enable_if("node-smaller", ui.is_freeform() && ui.in_mode(...default_pan)
             && selected_vertices.length > 0);
         enable_if("node-larger", ui.is_freeform() && ui.in_mode(...default_pan)
+            && selected_vertices.length > 0);
+        enable_if("node-bullet", ui.is_freeform() && ui.in_mode(...default_pan)
+            && selected_vertices.length > 0);
+        enable_if("node-square", ui.is_freeform() && ui.in_mode(...default_pan)
+            && selected_vertices.length > 0);
+        enable_if("node-circle", ui.is_freeform() && ui.in_mode(...default_pan)
             && selected_vertices.length > 0);
         enable_if("add-arrow", ui.is_freeform() && ui.in_mode(...default_pan)
             && (selected_vertices.length === 1 || selected_vertices.length === 2));

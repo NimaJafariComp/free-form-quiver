@@ -99,4 +99,5 @@ test("freeform node placement is pointer-driven and symbol size is history-backe
     assert.match(ui, /add_freeform_vertex\(this\.offset_from_event\(event\)\)/);
     assert.match(ui, /kind: "freeform-symbol-size"/);
     assert.match(ui, /\{ key: "N"/);
+    assert.match(ui, /set_selected_freeform_vertex_symbol/);
 });
