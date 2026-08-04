@@ -90,4 +90,5 @@ test("freeform labels have no scale-to-fit constraint", () => {
     const css = readFileSync(resolve("src/main.css"), "utf8");
     assert.match(ui, /ui\.is_freeform\(\) && cell\.is_vertex\(\)[\s\S]*fontSize = ""/);
     assert.match(css, /\.ui\.freeform \.vertex \.label[\s\S]*max-width: none/);
+    assert.match(css, /\.ui\.freeform \.vertex\.selected \.content[\s\S]*background: transparent/);
 });
