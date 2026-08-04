@@ -149,6 +149,15 @@ test("properties controls isolate pointer-up events from canvas dismissal", () =
     assert.match(ui, /event\.target\.closest\("\.label-input-container"\) !== null/);
 });
 
+test("localhost does not retain a production service-worker cache", () => {
+    const index = readFileSync(resolve("src/index.html"), "utf8");
+    const worker = readFileSync(resolve("service-worker/build.js"), "utf8");
+    assert.match(index, /location\.hostname === "localhost"/);
+    assert.match(index, /registration\.unregister\(\)/);
+    assert.match(worker, /skipWaiting: true/);
+    assert.match(worker, /clientsClaim: true/);
+});
+
 test("box artwork remains behind nodes while box controls remain reachable", () => {
     const ui = readFileSync(resolve("src/ui.mjs"), "utf8");
     const css = readFileSync(resolve("src/main.css"), "utf8");

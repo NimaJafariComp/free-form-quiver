@@ -47,7 +47,14 @@
     <!-- Service worker -->
     <script type="module">
         import { Workbox } from "./Workbox/workbox-window.prod.mjs";
-        if ("serviceWorker" in navigator) {
+        if (location.hostname === "localhost" || location.hostname === "127.0.0.1") {
+            // A precache is useful in production, but counterproductive while
+            // iterating locally: it can keep an old editor bundle alive after
+            // source files have changed.
+            navigator.serviceWorker?.getRegistrations().then((registrations) => {
+                registrations.forEach((registration) => registration.unregister());
+            });
+        } else if ("serviceWorker" in navigator) {
             new Workbox("service-worker.js").register();
         }
     </script>
