@@ -103,8 +103,9 @@ test("freeform labels have no scale-to-fit constraint", () => {
     const css = readFileSync(resolve("src/main.css"), "utf8");
     assert.match(ui, /freeform_vertex_symbol_size\(cell\)/);
     assert.match(css, /\.ui\.freeform \.vertex \.label[\s\S]*max-width: none/);
-    assert.match(css, /\.ui\.freeform \.vertex\.selected \.content[\s\S]*background: transparent/);
-    assert.match(ui, /if \(freeform\) \{[\s\S]*background: "transparent"[\s\S]*"border-radius": "0"/);
+    assert.match(ui, /\? new Shape\.Endpoint\(Point\.zero\(\)\)/);
+    assert.match(ui, /const content_size = freeform[\s\S]*ui\.freeform_vertex_symbol_size\(this\)/);
+    assert.match(css, /\.ui:not\(\.freeform\) \.vertex\.selected \.content/);
 });
 
 test("freeform node placement is pointer-driven and symbol size is history-backed", () => {

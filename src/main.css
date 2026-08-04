@@ -434,8 +434,6 @@ kbd {
     transform: translate(-50%, -50%);
     z-index: 2;
 
-    border-radius: 16px;
-
     text-align: center;
 }
 
@@ -444,19 +442,6 @@ kbd {
 .ui.freeform .vertex .content,
 .ui.freeform .vertex .label {
     overflow: visible;
-}
-
-/* Freeform vertices are anchors, not cards. Their fixed hit area remains for
-   dragging and arrow attachment, but it must never become a visible square
-   or rounded selection tile. */
-.ui.freeform .vertex .content,
-.ui.freeform .vertex .content:hover,
-.ui.freeform .vertex.source .content,
-.ui.freeform .vertex.target .content,
-.ui.freeform .vertex.selected .content {
-    background: transparent !important;
-    border: 0 !important;
-    box-shadow: none !important;
 }
 
 /* A freeform label is an independent annotation anchored at its node centre.
@@ -566,26 +551,30 @@ being. */
     transition: left 0.1s, top 0.1s, width 0.1s, height 0.1s;
 } */
 
-.ui.default .vertex .content {
+.ui:not(.freeform).default .vertex .content {
     cursor: default;
 }
 
 /* This is so explicit because of the CSS specificity rules. */
-.ui.default .vertex:not(.selected):not(.source):not(.target) .content:hover,
-.ui.command .vertex:not(.selected):not(.source):not(.target) .content:hover {
+.ui:not(.freeform).default .vertex:not(.selected):not(.source):not(.target) .content:hover,
+.ui:not(.freeform).command .vertex:not(.selected):not(.source):not(.target) .content:hover {
     background: var(--cell-hover);
 }
 
-.vertex.source .content {
+.ui:not(.freeform) .vertex.source .content {
     background: var(--cell-source);
 }
 
-.vertex.target .content {
+.ui:not(.freeform) .vertex.target .content {
     background: var(--cell-target);
 }
 
-.vertex.selected .content {
+.ui:not(.freeform) .vertex.selected .content {
     background: var(--cell-selected);
+}
+
+.ui:not(.freeform) .vertex .content {
+    border-radius: 16px;
 }
 
 .label {

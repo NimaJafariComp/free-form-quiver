@@ -9055,11 +9055,13 @@ export class Vertex extends Cell {
         this.position = position;
         // The shape data is going to be overwritten immediately, so really this information is
         // unimportant.
-        this.shape = new Shape.RoundedRect(
-            Point.zero(),
-            new Dimensions(ui.default_cell_size / 2, ui.default_cell_size / 2),
-            ui.default_cell_size / 8,
-        );
+        this.shape = ui.is_freeform()
+            ? new Shape.Endpoint(Point.zero())
+            : new Shape.RoundedRect(
+                Point.zero(),
+                new Dimensions(ui.default_cell_size / 2, ui.default_cell_size / 2),
+                ui.default_cell_size / 8,
+            );
         // This property is only relevant for edges. For vertices, it is always simply the shape.
         this.phantom_shape = this.shape;
 
@@ -9138,23 +9140,15 @@ export class Vertex extends Cell {
 
         // Resize the content according to the grid cell. This is just the default size: it will be
         // updated by `render_maths`.
+        const content_size = freeform
+            ? ui.freeform_vertex_symbol_size(this)
+            : ui.default_cell_size / 2;
         this.content_element.set_style({
-            width: `${ui.default_cell_size / 2}px`,
-            height: `${ui.default_cell_size / 2}px`,
+            width: `${content_size}px`,
+            height: `${content_size}px`,
             left: `${cell_width / 2}px`,
             top: `${cell_height / 2}px`,
         });
-        // A freeform vertex is only an anchor and its label. Quiver's legacy
-        // hover/selection rules are card-like, so clear those visual frame
-        // properties inline as well as in the freeform stylesheet.
-        if (freeform) {
-            this.content_element.set_style({
-                background: "transparent",
-                border: "0",
-                "border-radius": "0",
-                "box-shadow": "none",
-            });
-        }
 
         if (construct) {
             ui.panel.render_maths(ui, this);
@@ -9195,16 +9189,14 @@ export class Vertex extends Cell {
     /// Resize the cell content to match the label width.
     resize_content(ui, sizes) {
         if (ui.is_freeform()) {
-            const bounds = ui.freeform_bounds_for(this);
             const size = new Dimensions(
-                Math.max(1, bounds.width - CONSTANTS.CONTENT_PADDING * 2),
-                Math.max(1, bounds.height - CONSTANTS.CONTENT_PADDING * 2),
+                ui.freeform_vertex_symbol_size(this),
+                ui.freeform_vertex_symbol_size(this),
             );
             this.content_element.set_style({
                 width: `${size.width}px`,
                 height: `${size.height}px`,
             });
-            this.shape.size = size;
             return;
         }
         const size = this.content_size(ui, sizes);
