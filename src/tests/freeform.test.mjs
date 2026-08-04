@@ -142,6 +142,7 @@ test("properties controls isolate pointer-up events from canvas dismissal", () =
     const ui = readFileSync(resolve("src/ui.mjs"), "utf8");
     assert.match(ui, /inspector as a request[\s\S]*pointer_event\("up"\)/);
     assert.match(ui, /label-input-container hidden[\s\S]*pointer_event\("up"\).*stopPropagation/);
+    assert.match(ui, /this\.label_input\.listen\(pointer_event\("down"\), \(event\) => \{\s*event\.stopImmediatePropagation\(\);/);
 });
 
 test("box artwork remains behind nodes while box controls remain reachable", () => {

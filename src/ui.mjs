@@ -5064,9 +5064,9 @@ class Panel {
 
         // Prevent propagation of pointer events when interacting with the label input.
         this.label_input.listen(pointer_event("down"), (event) => {
-            if (event.button === 0) {
-                event.stopImmediatePropagation();
-            }
+            event.stopImmediatePropagation();
+        }).listen(pointer_event("up"), (event) => {
+            event.stopImmediatePropagation();
         });
 
         // Handle label interaction: update the labels of the selected cells when
