@@ -294,10 +294,11 @@ UIMode.Connect = class extends UIMode {
         // Otherwise we revert to the currently-selected label alignment in the panel and the
         // default offset (0).
         const options = {
-            // By default, 2-cells and above have a little padding for aesthetic purposes.
+            // Freeform arrows start with the same 5% clearance shown by the Length control.
+            // Higher-cell endpoints retain Quiver's larger padding for readability.
             shorten: {
-                source: source.level === 0 ? 0 : CONSTANTS.EDGE_EDGE_PADDING,
-                target: target.level === 0 ? 0 : CONSTANTS.EDGE_EDGE_PADDING,
+                source: source.level === 0 ? 5 : CONSTANTS.EDGE_EDGE_PADDING,
+                target: target.level === 0 ? 5 : CONSTANTS.EDGE_EDGE_PADDING,
             },
             // We will guess the label alignment below, but in case there's no selected label
             // alignment, we default to "left".
