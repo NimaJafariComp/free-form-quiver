@@ -345,6 +345,12 @@ DOM.Multislider = class extends DOM.Element {
                 });
                 if (!this.class_list.contains("disabled") && typeof hovered_thumb !== "undefined") {
                     event.stopPropagation();
+                    // Symmetric shortening is an explicit Shift gesture. In
+                    // particular, recover from a missed keyup by resetting a
+                    // two-thumb slider to independent handles on the next drag.
+                    if (this.thumbs.length > 1) {
+                        this.class_list.toggle("symmetric", event.shiftKey);
+                    }
                     // Display the currently-dragged thumb above any other. This is important where
                     // there are multiple thumbs, which can overlap.
                     this.thumbs.forEach((thumb) => thumb.set_style({ "z-index": 1 }));
@@ -516,8 +522,10 @@ window.addEventListener(pointer_event("move"), (event) => {
     }
 });
 
-// Handle the release of slider thumbs.
-window.addEventListener(pointer_event("up"), () => {
+// Handle the release of slider thumbs. This must run in capture phase: the
+// properties panel deliberately stops bubbling pointer-up events so clicks in
+// controls cannot dismiss it.
+const release_active_thumb = () => {
     const active_thumb = DOM.Multislider.active_thumb;
     if (active_thumb !== null) {
         const parent = active_thumb.slider.label.parent;
@@ -528,4 +536,7 @@ window.addEventListener(pointer_event("up"), () => {
         active_thumb.class_list.remove("active");
         DOM.Multislider.active_thumb = null;
     }
-});
+};
+window.addEventListener(pointer_event("up"), release_active_thumb, { capture: true });
+window.addEventListener(pointer_event("cancel"), release_active_thumb, { capture: true });
+window.addEventListener("blur", release_active_thumb);
