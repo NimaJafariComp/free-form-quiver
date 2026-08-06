@@ -2037,6 +2037,14 @@ label input[type="checkbox"]:checked::before {
     background: var(--ui-canvas);
 }
 
+/* Endpoint handles in the wiring editor are connection controls, not substitute nodes. A
+   transparent ring preserves their hit area while leaving the real black node visible beneath. */
+.ui.freeform .arrow-endpoint {
+    box-sizing: border-box;
+    background: transparent;
+    border: var(--ui-blue) 2px solid;
+}
+
 .arrow-endpoint:hover {
     border: var(--ui-blue) 2px solid;
 }
