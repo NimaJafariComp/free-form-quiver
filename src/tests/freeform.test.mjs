@@ -149,6 +149,15 @@ test("freeform Add arrow waits for explicit source and target clicks", () => {
     assert.match(ui, /enable_if\("add-arrow", ui\.is_freeform\(\) && ui\.in_mode\(\.\.\.default_pan\)\)/);
 });
 
+test("freeform Select All selects graph cells with visible marker feedback", () => {
+    const ui = readFileSync(resolve("src/ui.mjs"), "utf8");
+    const css = readFileSync(resolve("src/main.css"), "utf8");
+    assert.match(ui, /select_all_freeform\(\)/);
+    assert.match(ui, /this\.deselect\(\);\s*this\.select\(\.\.\.this\.quiver\.all_cells\(\)\)/);
+    assert.match(ui, /ui\.select_all_freeform\(\)/);
+    assert.match(css, /\.ui\.freeform \.vertex\.selected \.freeform-symbol/);
+});
+
 test("all freeform zoom controls use the clamped canvas zoom operation", () => {
     const ui = readFileSync(resolve("src/ui.mjs"), "utf8");
     assert.match(ui, /zoom_view\(delta\)/);

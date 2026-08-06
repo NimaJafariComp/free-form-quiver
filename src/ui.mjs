@@ -1008,6 +1008,15 @@ class UI {
         this.toolbar.update(this);
     }
 
+    /// Select every editable graph cell in the freeform scene. Boxes remain
+    /// independent layout containers rather than graph cells, so this clears a
+    /// currently selected box before selecting all nodes and arrows.
+    select_all_freeform() {
+        if (this.arrow_placement_active) this.add_arrow_from_selection();
+        this.deselect();
+        this.select(...this.quiver.all_cells());
+    }
+
     /// Handle one endpoint of the explicit Add arrow gesture. A source click
     /// only arms the target step; an edge is created only after a distinct
     /// target is clicked.
@@ -8087,7 +8096,7 @@ class Toolbar {
             "select-all",
             [{ key: "A", modifier: true, context: Shortcuts.SHORTCUT_PRIORITY.Defer }],
             () => {
-                ui.select(...ui.quiver.all_cells());
+                ui.select_all_freeform();
             },
             select,
         );

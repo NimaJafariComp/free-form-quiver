@@ -484,6 +484,12 @@ kbd {
     border-radius: 50%;
 }
 
+/* Selection feedback for point-like freeform nodes. This is a halo around
+   the marker, not a legacy vertex card or a change to its geometry. */
+.ui.freeform .vertex.selected .freeform-symbol {
+    box-shadow: 0 0 0 3px var(--ui-blue);
+}
+
 /* Freeform rectangular containers. They sit behind Quiver cells and make
    reusable problem definitions legible without becoming connectable nodes. */
 .diagram-box {
