@@ -199,6 +199,12 @@ test("new arrows default to a flexible 5–95 length range", () => {
     assert.match(ui, /thumbs: 2,[\s\S]*?spacing: 0/);
 });
 
+test("freeform arrow offset bends the path without detaching endpoint handles", () => {
+    const ui = readFileSync(resolve("src/ui.mjs"), "utf8");
+    assert.match(ui, /Quiver's legacy Offset translates the entire SVG, including its endpoint handles/);
+    assert.match(ui, /ui\.is_freeform\(\) && !this\.is_loop\(\)[\s\S]*?this\.arrow\.style\.curve \+= this\.arrow\.style\.shift;[\s\S]*?this\.arrow\.style\.shift = 0/);
+});
+
 test("freeform Select All selects graph cells with visible marker feedback", () => {
     const ui = readFileSync(resolve("src/ui.mjs"), "utf8");
     const css = readFileSync(resolve("src/main.css"), "utf8");
