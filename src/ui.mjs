@@ -918,8 +918,11 @@ class UI {
     render_freeform_vertex_symbol(vertex) {
         const symbol = vertex.element.query_selector(".freeform-symbol");
         if (symbol === null) return;
+        const size = `${this.freeform_vertex_symbol_size(vertex)}px`;
         symbol.set_attributes({ "data-symbol": this.freeform_vertex_symbol(vertex) });
-        symbol.set_style({ "--freeform-symbol-size": `${this.freeform_vertex_symbol_size(vertex)}px` });
+        // Set concrete dimensions rather than a CSS custom property: DOM style
+        // assignment does not consistently apply custom-property names.
+        symbol.set_style({ width: size, height: size });
     }
 
     /// Earlier freeform versions encoded the marker in the label itself.
