@@ -181,6 +181,13 @@ test("persistent hand tool pans only until toggled off", () => {
     assert.match(css, /\.ui\.pan \.container:active[\s\S]*cursor: grabbing/);
 });
 
+test("compact toolbars reserve logo space and scroll instead of overlapping it", () => {
+    const css = readFileSync(resolve("src/main.css"), "utf8");
+    assert.match(css, /@media \(max-width: 1280px\)[\s\S]*?\.toolbar[\s\S]*?left: 132px/);
+    assert.match(css, /@media \(max-width: 1280px\)[\s\S]*?overflow-x: auto/);
+    assert.match(css, /@media \(max-width: 480px\)[\s\S]*?#logo-link[\s\S]*?display: none/);
+});
+
 test("new arrows default to a flexible 5–95 length range", () => {
     const ui = readFileSync(resolve("src/ui.mjs"), "utf8");
     assert.match(ui, /shorten: \{ source: 5, target: 5 \}/);
