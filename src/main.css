@@ -2030,6 +2030,11 @@ label input[type="checkbox"]:checked::before {
     display: block;
 }
 
+/* Keep both reconnection anchors visible while an endpoint is being dragged. */
+.ui.connect .arrow.reconnecting .arrow-endpoint {
+    display: block;
+}
+
 .arrow-endpoint {
     position: absolute;
     z-index: 3;

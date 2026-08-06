@@ -208,6 +208,7 @@ test("freeform arrow offset preserves its path while endpoint handles stay on no
     assert.match(arrow, /translate\(\$\{handle_shift\.x\}px, \$\{handle_shift\.y\}px\)/);
     const css = readFileSync(resolve("src/main.css"), "utf8");
     assert.match(css, /\.ui\.freeform \.arrow-endpoint \{[\s\S]*?background: transparent[\s\S]*?border: var\(--ui-blue\) 2px solid/);
+    assert.match(css, /\.ui\.connect \.arrow\.reconnecting \.arrow-endpoint \{[\s\S]*?display: block/);
 });
 
 test("freeform Select All selects graph cells with visible marker feedback", () => {
