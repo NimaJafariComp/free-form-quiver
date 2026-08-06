@@ -692,6 +692,10 @@ class UI {
         // The Add node tool places its next vertex at the next pointer location.
         // It replaces Quiver's historical grid focus-point creation behaviour.
         this.node_placement_active = false;
+        // The Add arrow tool is an explicit two-click gesture: source first,
+        // then target. It never infers an endpoint from current layout order.
+        this.arrow_placement_active = false;
+        this.arrow_placement_source = null;
         // The constraints on the width and height of each cell: we use the maximum constraint for
         // final width/height. We store these separately from `cell_width` and `cell_height` to
         // avoid recomputing the sizes every time, as we access them frequently.
@@ -990,17 +994,53 @@ class UI {
     }
 
     add_arrow_from_selection() {
-        const vertices = Array.from(this.selection).filter((cell) => cell.is_vertex());
-        if (vertices.length === 2) {
-            const edge = UIMode.Connect.create_edge(this, vertices[0], vertices[1]);
-            this.history.add(this, [{ kind: "create", cells: new Set([edge]) }], true);
-            this.deselect();
-            this.select(edge);
-        } else if (vertices.length === 1) {
-            const mode = new UIMode.Connect(this, vertices[0], false);
-            this.switch_mode(mode);
-            vertices[0].element.class_list.add("source");
+        if (!this.is_freeform()) return;
+        if (this.arrow_placement_active) {
+            this.arrow_placement_source?.element.class_list.remove("source");
+            this.arrow_placement_active = false;
+            this.arrow_placement_source = null;
+            if (this.in_mode(UIMode.Connect)) this.switch_mode(UIMode.default);
+        } else {
+            this.arrow_placement_active = true;
+            this.arrow_placement_source = null;
         }
+        this.element.class_list.toggle("placing-arrow", this.arrow_placement_active);
+        this.toolbar.update(this);
+    }
+
+    /// Handle one endpoint of the explicit Add arrow gesture. A source click
+    /// only arms the target step; an edge is created only after a distinct
+    /// target is clicked.
+    place_freeform_arrow_endpoint(vertex, event) {
+        if (!this.is_freeform() || !this.arrow_placement_active || !vertex.is_vertex()) {
+            return false;
+        }
+        event.preventDefault();
+        event.stopPropagation();
+        if (this.arrow_placement_source === null) {
+            this.arrow_placement_source = vertex;
+            this.deselect();
+            this.select(vertex);
+            vertex.element.class_list.add("source");
+            // Reuse Quiver's connection overlay so the arrow visibly follows
+            // the pointer after its source has been chosen.
+            const mode = new UIMode.Connect(this, vertex, false);
+            this.switch_mode(mode);
+            mode.update(this, this.offset_from_event(event));
+            return true;
+        }
+        if (this.arrow_placement_source === vertex) return true;
+        if (this.in_mode(UIMode.Connect)) this.switch_mode(UIMode.default);
+        const edge = UIMode.Connect.create_edge(this, this.arrow_placement_source, vertex);
+        this.history.add(this, [{ kind: "create", cells: new Set([edge]) }], true);
+        this.arrow_placement_source.element.class_list.remove("source");
+        this.arrow_placement_source = null;
+        this.arrow_placement_active = false;
+        this.element.class_list.remove("placing-arrow");
+        this.deselect();
+        this.select(edge);
+        this.toolbar.update(this);
+        return true;
     }
 
     select_box(box) {
@@ -2175,7 +2215,7 @@ class UI {
                         commit_move_event();
                         this.switch_mode(UIMode.default);
                         this.panel.update(this);
-                    } else if (this.in_mode(UIMode.Connect)) {
+                    } else if (this.in_mode(UIMode.Connect) && !this.arrow_placement_active) {
                         // Stop trying to connect cells when the pointer is released outside
                         // the `<body>`.
                         if (this.mode.forged_vertex) {
@@ -8492,8 +8532,7 @@ class Toolbar {
             && selected_vertices.length > 0);
         enable_if("node-circle", ui.is_freeform() && ui.in_mode(...default_pan)
             && selected_vertices.length > 0);
-        enable_if("add-arrow", ui.is_freeform() && ui.in_mode(...default_pan)
-            && (selected_vertices.length === 1 || selected_vertices.length === 2));
+        enable_if("add-arrow", ui.is_freeform() && ui.in_mode(...default_pan));
         enable_if("select-all",
             ui.in_mode(...default_pan) && ui.selection.size < ui.quiver.all_cells().length);
         const connected_components = ui.quiver.connected_components(ui.selection);
@@ -8964,6 +9003,10 @@ class Cell {
         let was_previously_selected = true;
 
         content_element.listen(pointer_event("down"), (event) => {
+            if (event.button === 0 && ui.place_freeform_arrow_endpoint(this, event)) {
+                was_previously_selected = false;
+                return;
+            }
             // The focus point will have already been removed on a device with a cursor, but on
             // touch devices, we may encounter a `pointerdown` without a corresponding
             // `pointerleave`.

@@ -135,6 +135,20 @@ test("freeform node placement is pointer-driven and symbol size is history-backe
     assert.match(ui, /this\.freeform_layout\.set\(vertex, bounds\);\s*\/\/ The constructor[\s\S]*vertex\.render\(this\);/);
 });
 
+test("freeform Add arrow waits for explicit source and target clicks", () => {
+    const ui = readFileSync(resolve("src/ui.mjs"), "utf8");
+    assert.match(ui, /this\.arrow_placement_active = false/);
+    assert.match(ui, /place_freeform_arrow_endpoint\(vertex, event\)/);
+    assert.match(ui, /if \(this\.arrow_placement_source === null\)/);
+    assert.match(ui, /if \(this\.arrow_placement_source === vertex\) return true/);
+    assert.match(ui, /const mode = new UIMode\.Connect\(this, vertex, false\)/);
+    assert.match(ui, /mode\.update\(this, this\.offset_from_event\(event\)\)/);
+    assert.match(ui, /this\.in_mode\(UIMode\.Connect\) && !this\.arrow_placement_active/);
+    assert.match(ui, /UIMode\.Connect\.create_edge\(this, this\.arrow_placement_source, vertex\)/);
+    assert.match(ui, /ui\.place_freeform_arrow_endpoint\(this, event\)/);
+    assert.match(ui, /enable_if\("add-arrow", ui\.is_freeform\(\) && ui\.in_mode\(\.\.\.default_pan\)\)/);
+});
+
 test("all freeform zoom controls use the clamped canvas zoom operation", () => {
     const ui = readFileSync(resolve("src/ui.mjs"), "utf8");
     assert.match(ui, /zoom_view\(delta\)/);
