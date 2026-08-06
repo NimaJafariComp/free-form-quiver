@@ -184,7 +184,8 @@ test("persistent hand tool pans only until toggled off", () => {
 
 test("compact toolbars reserve logo space and scroll instead of overlapping it", () => {
     const css = readFileSync(resolve("src/main.css"), "utf8");
-    assert.match(css, /@media \(max-width: 1280px\)[\s\S]*?\.toolbar[\s\S]*?left: 132px/);
+    assert.match(css, /a > \.logo[\s\S]*?width: 72px/);
+    assert.match(css, /@media \(max-width: 1280px\)[\s\S]*?\.toolbar[\s\S]*?left: 104px/);
     assert.match(css, /@media \(max-width: 1280px\)[\s\S]*?overflow-x: auto/);
     assert.match(css, /@media \(max-width: 480px\)[\s\S]*?#logo-link[\s\S]*?display: none/);
 });

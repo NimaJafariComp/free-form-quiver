@@ -136,7 +136,7 @@ noscript {
 a > .logo {
     position: fixed;
     left: 16px; top: 16px;
-    width: 100px;
+    width: 72px;
     z-index: 90;
 
     opacity: 0.8;
@@ -1576,7 +1576,7 @@ button.flash {
    scroll region instead of extending underneath the fixed logo or beyond the viewport. */
 @media (max-width: 1280px) {
     .toolbar {
-        left: 132px;
+        left: 104px;
         right: 16px;
         transform: none;
         overflow-x: auto;
