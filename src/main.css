@@ -1441,7 +1441,9 @@ user has already pressed semicolon, placing us in command mode. */
     transition: opacity 0.1s;
 }
 
-.ui:not(.default):not(.modal) .toolbar {
+/* Pan is intentionally a persistent tool, so keep the toolbar interactive and visible to let the
+   user click the Hand button again. Other transient modes still suppress unrelated controls. */
+.ui:not(.default):not(.modal):not(.pan) .toolbar {
     opacity: 0.2;
 
     pointer-events: none;

@@ -175,6 +175,7 @@ test("persistent hand tool pans only until toggled off", () => {
     assert.match(ui, /"pan",\s*\[\],\s*\(\) => ui\.toggle_freeform_pan_mode\(\)/);
     assert.match(ui, /pan_button\.class_list\.toggle\("active", persistent_pan\)/);
     assert.match(ui, /if \(this\.in_mode\(UIMode\.Pan\)\) return;/);
+    assert.match(css, /\.ui:not\(\.default\):not\(\.modal\):not\(\.pan\) \.toolbar/);
     assert.match(css, /\.toolbar \.action\.active:not\(:disabled\)/);
     assert.match(css, /\.ui\.pan \.container[\s\S]*cursor: grab/);
     assert.match(css, /\.ui\.pan \.container:active[\s\S]*cursor: grabbing/);
