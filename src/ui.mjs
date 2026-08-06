@@ -887,6 +887,27 @@ class UI {
         return vertex.freeform_symbol || "bullet";
     }
 
+    freeform_symbol_token(symbol) {
+        return this.settings.get("quiver.renderer") === "typst"
+            ? { bullet: "bullet", square: "square", circle: "circle" }[symbol]
+            : { bullet: "\\bullet", square: "\\square", circle: "\\circ" }[symbol];
+    }
+
+    parse_freeform_label_input(value) {
+        for (const symbol of ["bullet", "square", "circle"]) {
+            const token = this.freeform_symbol_token(symbol);
+            if (value.trimStart().startsWith(token)) {
+                return { symbol, label: value.trimStart().slice(token.length).trimStart() };
+            }
+        }
+        return { symbol: null, label: value };
+    }
+
+    freeform_label_property(vertex) {
+        const token = this.freeform_symbol_token(this.freeform_vertex_symbol(vertex));
+        return vertex.label === "" ? token : `${token} ${vertex.label}`;
+    }
+
     render_freeform_vertex_symbol(vertex) {
         const symbol = vertex.element.query_selector(".freeform-symbol");
         if (symbol === null) return;
@@ -898,17 +919,13 @@ class UI {
     /// Promote that leading legacy marker to independent symbol state while
     /// preserving any annotation that follows it.
     migrate_legacy_freeform_symbol(vertex) {
-        const markers = this.settings.get("quiver.renderer") === "typst"
-            ? [["bullet", "bullet"], ["square", "square"], ["circle", "circle"]]
-            : [["\\bullet", "bullet"], ["\\square", "square"], ["\\circ", "circle"]];
-        for (const [token, symbol] of markers) {
-            if (vertex.label.trimStart().startsWith(token)) {
-                vertex.freeform_symbol = symbol;
-                vertex.label = vertex.label.replace(/^\s*/, "").slice(token.length).trimStart();
-                this.render_freeform_vertex_symbol(vertex);
-                this.panel.render_maths(this, vertex);
-                return true;
-            }
+        const parsed = this.parse_freeform_label_input(vertex.label);
+        if (parsed.symbol !== null) {
+            vertex.freeform_symbol = parsed.symbol;
+            vertex.label = parsed.label;
+            this.render_freeform_vertex_symbol(vertex);
+            this.panel.render_maths(this, vertex);
+            return true;
         }
         return false;
     }
@@ -5139,6 +5156,40 @@ class Panel {
                 return;
             }
             if (!ui.in_mode(UIMode.Command)) {
+                const vertices = Array.from(ui.selection).filter((cell) => cell.is_vertex());
+                if (ui.is_freeform() && vertices.length === ui.selection.size && vertices.length > 0) {
+                    const parsed = ui.parse_freeform_label_input(this.label_input.element.value);
+                    const labels = vertices.filter((vertex) => vertex.label !== parsed.label);
+                    const symbols = parsed.symbol === null ? [] : vertices.filter((vertex) => {
+                        return ui.freeform_vertex_symbol(vertex) !== parsed.symbol;
+                    });
+                    if (labels.length === 0 && symbols.length === 0) return;
+                    this.unqueue_selected(ui);
+                    const actions = [];
+                    if (labels.length > 0) {
+                        actions.push({
+                            kind: "label",
+                            value: this.label_input.element.value,
+                            cells: labels.map((vertex) => ({
+                                cell: vertex,
+                                from: vertex.label,
+                                to: parsed.label,
+                            })),
+                        });
+                    }
+                    if (symbols.length > 0) {
+                        actions.push({
+                            kind: "freeform-symbol",
+                            symbols: symbols.map((vertex) => ({
+                                vertex,
+                                from: ui.freeform_vertex_symbol(vertex),
+                                to: parsed.symbol,
+                            })),
+                        });
+                    }
+                    ui.history.add_or_modify_previous(ui, ["freeform-label", ui.selection], actions);
+                    return;
+                }
                 const selection = Array.from(ui.selection).filter((cell) => {
                     return cell.label !== this.label_input.element.value;
                 });
@@ -7228,7 +7279,9 @@ class Panel {
                 // jurisdiction of `Panel` (though they were at one point). However, since we want
                 // to use the same logic for these options as edge-specific options, it's convenient
                 // to include them here.
-                consider("{label}", cell.label);
+                consider("{label}", ui.is_freeform() && cell.is_vertex()
+                    ? ui.freeform_label_property(cell)
+                    : cell.label);
                 consider("{label_colour}", cell.label_colour);
 
                 // Edge-specific options.
