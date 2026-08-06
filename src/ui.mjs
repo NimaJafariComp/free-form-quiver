@@ -894,6 +894,25 @@ class UI {
         symbol.set_style({ "--freeform-symbol-size": `${this.freeform_vertex_symbol_size(vertex)}px` });
     }
 
+    /// Earlier freeform versions encoded the marker in the label itself.
+    /// Promote that leading legacy marker to independent symbol state while
+    /// preserving any annotation that follows it.
+    migrate_legacy_freeform_symbol(vertex) {
+        const markers = this.settings.get("quiver.renderer") === "typst"
+            ? [["bullet", "bullet"], ["square", "square"], ["circle", "circle"]]
+            : [["\\bullet", "bullet"], ["\\square", "square"], ["\\circ", "circle"]];
+        for (const [token, symbol] of markers) {
+            if (vertex.label.trimStart().startsWith(token)) {
+                vertex.freeform_symbol = symbol;
+                vertex.label = vertex.label.replace(/^\s*/, "").slice(token.length).trimStart();
+                this.render_freeform_vertex_symbol(vertex);
+                this.panel.render_maths(this, vertex);
+                return true;
+            }
+        }
+        return false;
+    }
+
     set_freeform_vertex_symbol_size(vertex, size) {
         vertex.freeform_symbol_size = Math.max(12, Math.min(128, size));
         this.render_freeform_vertex_symbol(vertex);
@@ -1250,6 +1269,7 @@ class UI {
                 if (vertex !== undefined && vertex.is_vertex()) {
                     const bounds = item.bounds || item;
                     this.set_freeform_bounds(vertex, bounds);
+                    if (data.version < 3) this.migrate_legacy_freeform_symbol(vertex);
                     if (item.symbol_size !== undefined) {
                         this.set_freeform_vertex_symbol_size(vertex, item.symbol_size);
                     }
