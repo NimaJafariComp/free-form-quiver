@@ -7170,6 +7170,12 @@ class Panel {
         };
 
         const renderer = ui.settings.get("quiver.renderer");
+        if (ui.is_freeform() && cell.is_vertex()) {
+            // The marker is rendered independently, so preserve the LaTeX
+            // relationship explicitly: `\\` starts an annotation below it;
+            // otherwise the label follows the marker inline.
+            label.class_list.toggle("below-marker", /^\s*\\\\/.test(cell.label));
+        }
         switch (renderer) {
             case "katex":
                 // Render the label with KaTeX.
