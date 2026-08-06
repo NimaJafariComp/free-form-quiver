@@ -5,6 +5,16 @@ import { Bounds, BoxStore, FreeformLayout, RectangularBox } from "../freeform.mj
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 
+test("freeform layout URLs preserve Base64 payloads across save and load", () => {
+    const ui = readFileSync(resolve("src/ui.mjs"), "utf8");
+    const ds = readFileSync(resolve("src/ds.mjs"), "utf8");
+    assert.ok(ui.includes('.replace(/=+$/, "")'));
+    assert.ok(ui.includes("decodeURIComponent(payload).replace(/-/g"));
+    assert.ok(ui.includes("const padded = base64.padEnd"));
+    assert.ok(ds.includes('const separator = segment.indexOf("=")'));
+    assert.ok(ds.includes("segment.slice(separator + 1)"));
+});
+
 test("moving a node changes only that node's independent bounds", () => {
     const layout = new FreeformLayout();
     layout.set("R1", new Bounds(40, 60, 180, 90));

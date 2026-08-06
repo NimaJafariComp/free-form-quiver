@@ -395,13 +395,21 @@ export class Colour extends Encodable {
 /// identifier, the query string parameter is prioritised.
 export function url_parameters() {
     let data = [];
+    const parse_parameters = (value) => value.split("&").map((segment) => {
+        // Values such as Base64 data legitimately contain `=` padding. Split
+        // only at the first delimiter so saved freeform layouts are intact.
+        const separator = segment.indexOf("=");
+        return separator === -1
+            ? [segment, ""]
+            : [segment.slice(0, separator), segment.slice(separator + 1)];
+    });
     const fragment_string = window.location.hash.replace(/^#/, "");
     if (fragment_string !== "") {
-        data = data.concat(fragment_string.split("&").map(segment => segment.split("=")));
+        data = data.concat(parse_parameters(fragment_string));
     }
     const query_string = window.location.href.match(/\?(.*)$/);
     if (query_string !== null) {
-        data = data.concat(query_string[1].split("&").map(segment => segment.split("=")));
+        data = data.concat(parse_parameters(query_string[1]));
     }
     return new Map(data);
 }

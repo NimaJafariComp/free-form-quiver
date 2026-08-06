@@ -1344,12 +1344,19 @@ class UI {
             items,
             boxes: this.box_store.serialize(),
         }));
-        return btoa(String.fromCharCode(...bytes));
+        // Base64url has no `=` padding, so it remains stable in the fragment
+        // identifier even in URLs handled by older Quiver tooling.
+        return btoa(String.fromCharCode(...bytes))
+            .replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
     }
 
     restore_freeform_payload(payload) {
         try {
-            const bytes = Uint8Array.from(atob(payload), (character) => character.charCodeAt(0));
+            // Accept current Base64url payloads as well as older standard
+            // Base64 payloads whose trailing padding was omitted by URL parsing.
+            const base64 = decodeURIComponent(payload).replace(/-/g, "+").replace(/_/g, "/");
+            const padded = base64.padEnd(base64.length + (4 - base64.length % 4) % 4, "=");
+            const bytes = Uint8Array.from(atob(padded), (character) => character.charCodeAt(0));
             const data = JSON.parse(new TextDecoder().decode(bytes));
             if (![1, 2, 3].includes(data.version) || typeof data.items !== "object") {
                 throw new Error("invalid freeform layout payload");
