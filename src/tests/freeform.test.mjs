@@ -211,6 +211,18 @@ test("freeform arrow offset preserves its path while endpoint handles stay on no
     assert.match(css, /\.ui\.connect \.arrow\.reconnecting \.arrow-endpoint \{[\s\S]*?display: block/);
 });
 
+test("freeform endpoint reconnection commits the node under the released pointer", () => {
+    const ui = readFileSync(resolve("src/ui.mjs"), "utf8");
+    assert.match(ui, /complete_freeform_reconnection\(event\)/);
+    assert.match(ui, /document\.elementFromPoint\(event\.clientX, event\.clientY\)/);
+    assert.match(ui, /candidate\.closest\("\.vertex"\)/);
+    assert.match(ui, /UIMode\.Connect\.valid_connection\([\s\S]*this\.mode\.reconnect/);
+    assert.match(ui, /kind: "connect",[\s\S]*from,[\s\S]*to: target/);
+    assert.match(ui, /this\.complete_freeform_reconnection\(event\);/);
+    assert.match(ui, /An endpoint drag can reach a target vertex without a reliable[\s\S]*?ui\.mode\.target = this/);
+    assert.match(ui, /Resolve a freeform endpoint drop before canvas controls[\s\S]*?this\.complete_freeform_reconnection\(event\)[\s\S]*?\{ capture: true \}/);
+});
+
 test("freeform Select All selects graph cells with visible marker feedback", () => {
     const ui = readFileSync(resolve("src/ui.mjs"), "utf8");
     const css = readFileSync(resolve("src/main.css"), "utf8");

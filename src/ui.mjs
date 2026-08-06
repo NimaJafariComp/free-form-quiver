@@ -1033,6 +1033,46 @@ class UI {
         return true;
     }
 
+    /// Complete a freeform endpoint reconnection from the actual pointer release position.
+    /// Endpoint handles sit in the arrow SVG, so browsers do not always dispatch the release to
+    /// a vertex's content element after a drag.  Resolve the vertex beneath the pointer here so
+    /// reconnecting an endpoint is not dependent on that local handler firing.
+    complete_freeform_reconnection(event) {
+        if (!this.is_freeform() || !this.in_mode(UIMode.Connect)
+            || this.mode.reconnect === null) {
+            return false;
+        }
+
+        const candidates = [event.target];
+        if (Number.isFinite(event.clientX) && Number.isFinite(event.clientY)) {
+            candidates.unshift(document.elementFromPoint(event.clientX, event.clientY));
+        }
+        const vertex_element = candidates.find((candidate) => candidate instanceof Element
+            && candidate.closest(".vertex") !== null)?.closest(".vertex");
+        const target = vertex_element === undefined ? null : this.quiver.all_cells().find((cell) => {
+            return cell.is_vertex() && cell.element.element === vertex_element;
+        });
+
+        if (target === undefined || target === null || !UIMode.Connect.valid_connection(
+            this, this.mode.source, target, this.mode.reconnect
+        )) {
+            return false;
+        }
+
+        const { edge, end } = this.mode.reconnect;
+        const from = edge[end];
+        this.mode.target = target;
+        this.mode.connect(this, event);
+        this.history.add(this, [{
+            kind: "connect",
+            edge,
+            end,
+            from,
+            to: target,
+        }], false, this.selection_excluding(new Set()));
+        return true;
+    }
+
     /// Select every editable graph cell in the freeform scene. Boxes remain
     /// independent layout containers rather than graph cells, so this clears a
     /// currently selected box before selecting all nodes and arrows.
@@ -2264,6 +2304,11 @@ class UI {
                         this.switch_mode(UIMode.default);
                         this.panel.update(this);
                     } else if (this.in_mode(UIMode.Connect) && !this.arrow_placement_active) {
+                        // Reconnection normally finishes in the destination vertex's pointer-up
+                        // listener.  In freeform mode an SVG endpoint handle can retain that
+                        // release instead, so resolve the vertex under the pointer before
+                        // dismissing the connection.
+                        this.complete_freeform_reconnection(event);
                         // Stop trying to connect cells when the pointer is released outside
                         // the `<body>`.
                         if (this.mode.forged_vertex) {
@@ -2287,6 +2332,18 @@ class UI {
                 this.panel.hide_if_unselected(this);
             }
         });
+
+        // Resolve a freeform endpoint drop before canvas controls get a chance to consume the
+        // release. In particular, a node's label/content handler can stop propagation while the
+        // pointer is over its marker, which used to make a valid reconnection snap back.
+        document.addEventListener(pointer_event("up"), (event) => {
+            if (event.button === 0 && event.pointerType !== "touch"
+                && this.complete_freeform_reconnection(event)) {
+                this.switch_mode(UIMode.default);
+                this.panel.hide_if_unselected(this);
+                event.stopImmediatePropagation();
+            }
+        }, { capture: true });
 
         // Inspect the target before individual canvas controls can stop event
         // bubbling. This guarantees that clicking an existing arrow or empty
@@ -9275,6 +9332,17 @@ class Cell {
                     // pointer-up path complete or reset that gesture in between those two clicks.
                     if (ui.is_freeform() && ui.arrow_placement_active) {
                         return;
+                    }
+
+                    // An endpoint drag can reach a target vertex without a reliable
+                    // `pointerenter` (the SVG handle owns the gesture).  Treat the vertex that
+                    // received the release as the reconnect target, rather than requiring the
+                    // hover handler to have populated `mode.target` first.
+                    if (ui.is_freeform() && ui.mode.reconnect !== null
+                        && UIMode.Connect.valid_connection(
+                            ui, ui.mode.source, this, ui.mode.reconnect
+                        )) {
+                        ui.mode.target = this;
                     }
                     event.stopImmediatePropagation();
 
