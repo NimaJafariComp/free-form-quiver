@@ -448,6 +448,10 @@ kbd {
    It never inherits a width constraint or a scale-to-fit rule from the old
    grid-cell renderer. */
 .ui.freeform .vertex .label {
+    /* An annotation begins below the marker. Its own line breaks (including
+       LaTeX `\\`) add lines below this anchor instead of crossing the node. */
+    top: calc(100% + 6px);
+    transform: translate(-50%, 0);
     width: max-content;
     max-width: none;
     min-width: max-content;

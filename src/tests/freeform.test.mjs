@@ -114,6 +114,7 @@ test("freeform labels have no scale-to-fit constraint", () => {
     assert.match(ui, /render_freeform_vertex_symbol\(vertex\)/);
     assert.match(ui, /symbol\.set_style\(\{ width: size, height: size \}\)/);
     assert.match(css, /\.ui\.freeform \.vertex \.label[\s\S]*max-width: none/);
+    assert.match(css, /\.ui\.freeform \.vertex \.label \{[\s\S]*top: calc\(100% \+ 6px\)/);
     assert.match(ui, /\? new Shape\.Endpoint\(Point\.zero\(\)\)/);
     assert.match(ui, /const content_size = freeform[\s\S]*ui\.freeform_vertex_symbol_size\(this\)/);
     assert.match(css, /\.ui:not\(\.freeform\) \.vertex\.selected \.content/);
