@@ -868,6 +868,21 @@ class UI {
         this.toolbar.update(this);
     }
 
+    /// Toggle the persistent hand tool. Unlike modifier-key panning, this stays active until the
+    /// user presses the toolbar button again, and it deliberately suppresses canvas editing.
+    toggle_freeform_pan_mode() {
+        if (!this.is_freeform()) return;
+        if (this.in_mode(UIMode.Pan) && this.mode.key === null) {
+            this.switch_mode(UIMode.default);
+        } else {
+            this.node_placement_active = false;
+            this.element.class_list.remove("placing-node");
+            this.cancel_creation();
+            this.switch_mode(new UIMode.Pan(null));
+        }
+        this.toolbar.update(this);
+    }
+
     /// The Add node tool owns the next pointer interaction, including clicks
     /// on box controls. This lets the user place a node inside a bank instead
     /// of selecting or dragging that bank first.
@@ -1233,6 +1248,7 @@ class UI {
                 .add_to(element);
             selection_surface.listen(pointer_event("down"), (event) => {
                 if (event.button === 0) {
+                    if (this.in_mode(UIMode.Pan)) return;
                     if (this.place_freeform_node_if_armed(event)) return;
                     event.preventDefault();
                     event.stopPropagation();
@@ -1243,6 +1259,7 @@ class UI {
             new DOM.Element("span", { class: "diagram-box__title" }).add(box.title).add_to(header);
             header.listen(pointer_event("down"), (event) => {
                 if (event.button === 0) {
+                    if (this.in_mode(UIMode.Pan)) return;
                     if (this.place_freeform_node_if_armed(event)) return;
                     event.preventDefault();
                     event.stopPropagation();
@@ -1266,6 +1283,7 @@ class UI {
                 .add_to(element);
             resize.listen(pointer_event("down"), (event) => {
                 if (event.button === 0) {
+                    if (this.in_mode(UIMode.Pan)) return;
                     if (this.place_freeform_node_if_armed(event)) return;
                     event.preventDefault();
                     event.stopPropagation();
@@ -1285,6 +1303,7 @@ class UI {
             this.box_elements.set(box.id, element);
             element.listen(pointer_event("down"), (event) => {
                 if (event.button === 0) {
+                    if (this.in_mode(UIMode.Pan)) return;
                     this.select_box(box);
                 }
             });
@@ -8156,6 +8175,13 @@ class Toolbar {
             () => ui.add_arrow_from_selection(),
         );
 
+        add_action(
+            "Drag",
+            "pan",
+            [],
+            () => ui.toggle_freeform_pan_mode(),
+        );
+
         const select = add_subtoolbar("Select", "select");
 
         add_action(
@@ -8609,6 +8635,13 @@ class Toolbar {
         enable_if("node-circle", ui.is_freeform() && ui.in_mode(...default_pan)
             && selected_vertices.length > 0);
         enable_if("add-arrow", ui.is_freeform() && ui.in_mode(...default_pan));
+        const pan_button = this.element.query_selector('.action[data-name="pan"]');
+        const persistent_pan = ui.is_freeform() && ui.in_mode(UIMode.Pan) && ui.mode.key === null;
+        pan_button.element.disabled = !ui.is_freeform()
+            || !(ui.in_mode(UIMode.Default) || persistent_pan);
+        pan_button.class_list.toggle("active", persistent_pan);
+        pan_button.set_attributes({ "aria-pressed": persistent_pan ? "true" : "false" });
+        pan_button.query_selector(".name").replace(persistent_pan ? "Drag on" : "Drag");
         enable_if("select-all",
             ui.in_mode(...default_pan) && ui.selection.size < ui.quiver.all_cells().length);
         const connected_components = ui.quiver.connected_components(ui.selection);

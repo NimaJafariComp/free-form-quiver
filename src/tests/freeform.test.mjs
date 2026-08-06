@@ -166,6 +166,20 @@ test("freeform Add arrow waits for explicit source and target clicks", () => {
     assert.match(ui, /enable_if\("add-arrow", ui\.is_freeform\(\) && ui\.in_mode\(\.\.\.default_pan\)\)/);
 });
 
+test("persistent hand tool pans only until toggled off", () => {
+    const ui = readFileSync(resolve("src/ui.mjs"), "utf8");
+    const css = readFileSync(resolve("src/main.css"), "utf8");
+    assert.match(ui, /toggle_freeform_pan_mode\(\)/);
+    assert.match(ui, /this\.in_mode\(UIMode\.Pan\) && this\.mode\.key === null/);
+    assert.match(ui, /new UIMode\.Pan\(null\)/);
+    assert.match(ui, /"pan",\s*\[\],\s*\(\) => ui\.toggle_freeform_pan_mode\(\)/);
+    assert.match(ui, /pan_button\.class_list\.toggle\("active", persistent_pan\)/);
+    assert.match(ui, /if \(this\.in_mode\(UIMode\.Pan\)\) return;/);
+    assert.match(css, /\.toolbar \.action\.active:not\(:disabled\)/);
+    assert.match(css, /\.ui\.pan \.container[\s\S]*cursor: grab/);
+    assert.match(css, /\.ui\.pan \.container:active[\s\S]*cursor: grabbing/);
+});
+
 test("new arrows default to a flexible 5–95 length range", () => {
     const ui = readFileSync(resolve("src/ui.mjs"), "utf8");
     assert.match(ui, /shorten: \{ source: 5, target: 5 \}/);

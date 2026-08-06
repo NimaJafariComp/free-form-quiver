@@ -1482,6 +1482,17 @@ user has already pressed semicolon, placing us in command mode. */
     background: var(--ui-blue);
 }
 
+/* The hand tool is a persistent mode, not a momentary button. Keep it visibly latched until
+   the user clicks it again, while the cursor communicates the corresponding canvas action. */
+.toolbar .action.active:not(:disabled) {
+    background: var(--ui-blue);
+}
+
+.toolbar .action.active .name,
+.toolbar .action.active .shortcut {
+    color: var(--ui-white);
+}
+
 .toolbar .action img {
     width: 28px;
     vertical-align: middle;
