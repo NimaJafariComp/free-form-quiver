@@ -1062,15 +1062,15 @@ class UI {
             mode.update(this, this.offset_from_event(event));
             return true;
         }
-        if (this.arrow_placement_source === vertex) return true;
         const source = this.arrow_placement_source;
-        if (this.in_mode(UIMode.Connect)) this.switch_mode(UIMode.default);
-        // Leave placement mode before history applies the new edge. Otherwise
-        // an immediate selection/render update can retain the old Connect mode.
+        // Leave placement mode before changing UI mode or applying history. This makes both
+        // ordinary arrows and self-loops finish as one complete gesture, rather than leaving
+        // a stale Connect mode that intercepts the next node click.
         source.element.class_list.remove("source");
         this.arrow_placement_source = null;
         this.arrow_placement_active = false;
         this.element.class_list.remove("placing-arrow");
+        if (this.in_mode(UIMode.Connect)) this.switch_mode(UIMode.default);
         const edge = UIMode.Connect.create_edge(this, source, vertex);
         this.history.add(this, [{ kind: "create", cells: new Set([edge]) }], true);
         this.deselect();

@@ -152,7 +152,6 @@ test("freeform Add arrow waits for explicit source and target clicks", () => {
     assert.match(ui, /this\.arrow_placement_active = false/);
     assert.match(ui, /place_freeform_arrow_endpoint\(vertex, event\)/);
     assert.match(ui, /if \(this\.arrow_placement_source === null\)/);
-    assert.match(ui, /if \(this\.arrow_placement_source === vertex\) return true/);
     assert.match(ui, /const mode = new UIMode\.Connect\(this, vertex, false\)/);
     assert.match(ui, /mode\.update\(this, this\.offset_from_event\(event\)\)/);
     assert.match(ui, /this\.in_mode\(UIMode\.Connect\) && !this\.arrow_placement_active/);
@@ -160,7 +159,8 @@ test("freeform Add arrow waits for explicit source and target clicks", () => {
     assert.match(ui, /target\?\.closest\("\.vertex"\) !== null/);
     assert.match(ui, /\{ capture: true \}/);
     assert.match(ui, /const source = this\.arrow_placement_source/);
-    assert.match(ui, /source\.element\.class_list\.remove\("source"\)[\s\S]*UIMode\.Connect\.create_edge\(this, source, vertex\)/);
+    assert.doesNotMatch(ui, /if \(this\.arrow_placement_source === vertex\) return true/);
+    assert.match(ui, /this\.arrow_placement_active = false;[\s\S]*?if \(this\.in_mode\(UIMode\.Connect\)\) this\.switch_mode\(UIMode\.default\);[\s\S]*?UIMode\.Connect\.create_edge\(this, source, vertex\)/);
     assert.match(ui, /remove_cell\(cell, when\) \{[\s\S]*this\.cancel_freeform_arrow_placement\(\)/);
     assert.match(ui, /ui\.place_freeform_arrow_endpoint\(this, event\)/);
     assert.match(ui, /enable_if\("add-arrow", ui\.is_freeform\(\) && ui\.in_mode\(\.\.\.default_pan\)\)/);
