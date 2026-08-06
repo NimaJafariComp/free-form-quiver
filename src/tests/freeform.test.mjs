@@ -166,6 +166,13 @@ test("freeform Add arrow waits for explicit source and target clicks", () => {
     assert.match(ui, /enable_if\("add-arrow", ui\.is_freeform\(\) && ui\.in_mode\(\.\.\.default_pan\)\)/);
 });
 
+test("new arrows default to a flexible 5–95 length range", () => {
+    const ui = readFileSync(resolve("src/ui.mjs"), "utf8");
+    assert.match(ui, /shorten: \{ source: 5, target: 5 \}/);
+    assert.match(ui, /case "length":\s*values = \[5, 95\]/);
+    assert.match(ui, /thumbs: 2,[\s\S]*?spacing: 0/);
+});
+
 test("freeform Select All selects graph cells with visible marker feedback", () => {
     const ui = readFileSync(resolve("src/ui.mjs"), "utf8");
     const css = readFileSync(resolve("src/main.css"), "utf8");

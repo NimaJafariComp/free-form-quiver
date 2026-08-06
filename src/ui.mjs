@@ -5632,7 +5632,9 @@ class Panel {
             max: 100,
             step: 10,
             thumbs: 2,
-            spacing: 20,
+            // The handles control source and target shortening independently. They may meet,
+            // but never cross, so either end can be adjusted without moving the other.
+            spacing: 0,
         }).class_list.add("arrow-style");
 
         // Allow edges to be shortened symmetrically by holding shift; and allow column and row
@@ -7360,7 +7362,7 @@ class Panel {
                             values = [50];
                             break;
                         case "length":
-                            values = [0, 100];
+                            values = [5, 95];
                             break;
                         case "level":
                             values = [1];
@@ -9539,7 +9541,9 @@ export class Edge extends Cell {
             curve: 0,
             radius: 3,
             angle: 0,
-            shorten: { source: 0, target: 0 },
+            // Leave a small default gap at both endpoints. The Length slider represents the
+            // target as its complement, so this renders as the range 5–95.
+            shorten: { source: 5, target: 5 },
             level: 1,
             shape: "bezier",
             colour: Colour.black(),
