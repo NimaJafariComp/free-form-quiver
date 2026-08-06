@@ -894,13 +894,20 @@ class UI {
     }
 
     parse_freeform_label_input(value) {
-        for (const symbol of ["bullet", "square", "circle"]) {
-            const token = this.freeform_symbol_token(symbol);
-            if (value.trimStart().startsWith(token)) {
-                return { symbol, label: value.trimStart().slice(token.length).trimStart() };
-            }
+        let label = value.trimStart();
+        let symbol = null;
+        // A previous freeform version stored its marker in the label. Consume every leading marker
+        // so changing shape cannot leave an old marker as
+        // visible LaTeX underneath the independent freeform marker.
+        while (true) {
+            const matched = ["bullet", "square", "circle"].find((candidate) => {
+                return label.startsWith(this.freeform_symbol_token(candidate));
+            });
+            if (matched === undefined) break;
+            if (symbol === null) symbol = matched;
+            label = label.slice(this.freeform_symbol_token(matched).length).trimStart();
         }
-        return { symbol: null, label: value };
+        return { symbol, label: symbol === null ? value : label };
     }
 
     freeform_label_property(vertex) {
@@ -955,14 +962,28 @@ class UI {
     set_selected_freeform_vertex_symbol(symbol) {
         const vertices = Array.from(this.selection).filter((cell) => cell.is_vertex());
         if (vertices.length === 0) return;
-        this.history.add(this, [{
+        const labels = vertices.map((vertex) => ({ vertex, parsed: this.parse_freeform_label_input(vertex.label) }))
+            .filter(({ vertex, parsed }) => parsed.symbol !== null && parsed.label !== vertex.label);
+        const actions = [];
+        if (labels.length > 0) {
+            actions.push({
+                kind: "label",
+                labels: labels.map(({ vertex, parsed }) => ({
+                    cell: vertex,
+                    from: vertex.label,
+                    to: parsed.label,
+                })),
+            });
+        }
+        actions.push({
             kind: "freeform-symbol",
             symbols: vertices.map((vertex) => ({
                 vertex,
                 from: this.freeform_vertex_symbol(vertex),
                 to: symbol,
             })),
-        }], true);
+        });
+        this.history.add(this, actions, true);
     }
 
     add_arrow_from_selection() {
@@ -4586,8 +4607,15 @@ class History {
                 for (const new_action of new_actions) {
                     if (action.kind === new_action.kind) {
                         // Modify the `to` field of each property modification.
-                        action[`${new_action.kind}s`].forEach((modification) => {
-                            modification.to = new_action.value;
+                        const property = `${new_action.kind}s`;
+                        const replacements = new_action[property] || new_action.cells;
+                        action[property].forEach((modification) => {
+                            const key = modification.cell || modification.vertex;
+                            const replacement = replacements.find((candidate) => {
+                                return (candidate.cell || candidate.vertex) === key;
+                            });
+                            modification.to = replacement === undefined
+                                ? new_action.value : replacement.to;
                             if (modification.to !== modification.from) {
                                 unchanged = false;
                             }
@@ -4608,7 +4636,7 @@ class History {
             // event.
             this.add_collapsible(ui, collapse, new_actions.map((new_action) => ({
                 kind: new_action.kind,
-                [`${new_action.kind}s`]: new_action.cells,
+                [`${new_action.kind}s`]: new_action[`${new_action.kind}s`] || new_action.cells,
             })), true);
         }
     }
