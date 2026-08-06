@@ -159,7 +159,9 @@ test("freeform Add arrow waits for explicit source and target clicks", () => {
     assert.match(ui, /cancel_freeform_arrow_placement\(\)/);
     assert.match(ui, /target\?\.closest\("\.vertex"\) !== null/);
     assert.match(ui, /\{ capture: true \}/);
-    assert.match(ui, /UIMode\.Connect\.create_edge\(this, this\.arrow_placement_source, vertex\)/);
+    assert.match(ui, /const source = this\.arrow_placement_source/);
+    assert.match(ui, /source\.element\.class_list\.remove\("source"\)[\s\S]*UIMode\.Connect\.create_edge\(this, source, vertex\)/);
+    assert.match(ui, /remove_cell\(cell, when\) \{[\s\S]*this\.cancel_freeform_arrow_placement\(\)/);
     assert.match(ui, /ui\.place_freeform_arrow_endpoint\(this, event\)/);
     assert.match(ui, /enable_if\("add-arrow", ui\.is_freeform\(\) && ui\.in_mode\(\.\.\.default_pan\)\)/);
 });

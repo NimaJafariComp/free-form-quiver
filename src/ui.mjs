@@ -1048,13 +1048,16 @@ class UI {
             return true;
         }
         if (this.arrow_placement_source === vertex) return true;
+        const source = this.arrow_placement_source;
         if (this.in_mode(UIMode.Connect)) this.switch_mode(UIMode.default);
-        const edge = UIMode.Connect.create_edge(this, this.arrow_placement_source, vertex);
-        this.history.add(this, [{ kind: "create", cells: new Set([edge]) }], true);
-        this.arrow_placement_source.element.class_list.remove("source");
+        // Leave placement mode before history applies the new edge. Otherwise
+        // an immediate selection/render update can retain the old Connect mode.
+        source.element.class_list.remove("source");
         this.arrow_placement_source = null;
         this.arrow_placement_active = false;
         this.element.class_list.remove("placing-arrow");
+        const edge = UIMode.Connect.create_edge(this, source, vertex);
+        this.history.add(this, [{ kind: "create", cells: new Set([edge]) }], true);
         this.deselect();
         this.select(edge);
         this.toolbar.update(this);
@@ -3837,6 +3840,9 @@ class UI {
 
     /// Removes a cell.
     remove_cell(cell, when) {
+        // Deleting any item is an explicit editing action, not part of a
+        // pending arrow gesture. Never let the gesture survive it.
+        if (this.is_freeform()) this.cancel_freeform_arrow_placement();
         // Remove this cell and its dependents from the quiver and then from the HTML.
         const update_positions = new Set();
         for (const removed of this.quiver.remove(cell, when)) {
