@@ -134,6 +134,15 @@ test("freeform node placement is pointer-driven and symbol size is history-backe
     assert.match(ui, /this\.freeform_layout\.set\(vertex, bounds\);\s*\/\/ The constructor[\s\S]*vertex\.render\(this\);/);
 });
 
+test("all freeform zoom controls use the clamped canvas zoom operation", () => {
+    const ui = readFileSync(resolve("src/ui.mjs"), "utf8");
+    assert.match(ui, /zoom_view\(delta\)/);
+    assert.match(ui, /clamp\(CONSTANTS\.MIN_ZOOM, this\.scale \+ delta, CONSTANTS\.MAX_ZOOM\)/);
+    assert.match(ui, /this\.zoom_view\(-event\.deltaY \/ 100\)/);
+    assert.match(ui, /\(\) => ui\.zoom_view\(-0\.25\)/);
+    assert.match(ui, /\(\) => ui\.zoom_view\(0\.25\)/);
+});
+
 test("member nodes cross a box border atomically instead of stalling during drag", () => {
     const ui = readFileSync(resolve("src/ui.mjs"), "utf8");
     assert.match(ui, /resolve_freeform_drag_bounds\(vertex, proposed, delta\)/);

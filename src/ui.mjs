@@ -1994,12 +1994,7 @@ class UI {
 
             // If the user is holding shift, then we zoom, otherwise we pan.
             if (event.shiftKey) {
-                this.pan_to(this.view, clamp(
-                    CONSTANTS.MIN_ZOOM,
-                    this.scale - event.deltaY / 100,
-                    CONSTANTS.MAX_ZOOM,
-                ));
-                this.toolbar.update(this);
+                this.zoom_view(-event.deltaY / 100);
             } else {
                 this.pan_view(new Offset(
                     event.deltaX * 2 ** -this.scale,
@@ -3831,6 +3826,17 @@ class UI {
     /// If `zoom` is positive, then everything will grow larger.
     pan_view(offset, zoom = 0) {
         this.pan_to(this.view.add(offset), this.scale + zoom);
+    }
+
+    /// Zoom the freeform canvas around the viewport centre.  All zoom controls
+    /// share this path so toolbar buttons, shortcuts, and Shift+wheel remain in
+    /// sync and cannot move outside the supported zoom range.
+    zoom_view(delta) {
+        const zoom = clamp(CONSTANTS.MIN_ZOOM, this.scale + delta, CONSTANTS.MAX_ZOOM);
+        if (zoom === this.scale) return false;
+        this.pan_to(this.view, zoom);
+        this.toolbar.update(this);
+        return true;
     }
 
     /// Centre the view with respect to the selection, or the entire quiver if no cells are
@@ -8302,18 +8308,14 @@ class Toolbar {
             "Zoom out",
             "zoom-out",
             [{ key: "-", modifier: true, context: Shortcuts.SHORTCUT_PRIORITY.Always }],
-            () => {
-                ui.pan_view(Offset.zero(), -0.25);
-            },
+            () => ui.zoom_view(-0.25),
         );
 
         add_action(
             "Zoom in",
             "zoom-in",
             [{ key: "=", modifier: true, context: Shortcuts.SHORTCUT_PRIORITY.Always }],
-            () => {
-                ui.pan_view(Offset.zero(), 0.25);
-            },
+            () => ui.zoom_view(0.25),
         );
 
         add_action(
