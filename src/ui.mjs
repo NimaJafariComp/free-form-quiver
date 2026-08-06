@@ -836,11 +836,7 @@ class UI {
         while (occupied.has(`${new Position(x, 0)}`)) {
             ++x;
         }
-        const label = {
-            "katex": "\\bullet",
-            "typst": "bullet",
-        }[this.settings.get("quiver.renderer")];
-        const vertex = new Vertex(this, label, new Position(x, 0));
+        const vertex = new Vertex(this, "", new Position(x, 0));
         const bounds = this.freeform_node_bounds_at(centre);
         this.freeform_layout.set(vertex, bounds);
         // The constructor renders once before its freeform bounds are known.
@@ -887,11 +883,20 @@ class UI {
         return vertex.freeform_symbol_size || 26;
     }
 
+    freeform_vertex_symbol(vertex) {
+        return vertex.freeform_symbol || "bullet";
+    }
+
+    render_freeform_vertex_symbol(vertex) {
+        const symbol = vertex.element.query_selector(".freeform-symbol");
+        if (symbol === null) return;
+        symbol.set_attributes({ "data-symbol": this.freeform_vertex_symbol(vertex) });
+        symbol.set_style({ "--freeform-symbol-size": `${this.freeform_vertex_symbol_size(vertex)}px` });
+    }
+
     set_freeform_vertex_symbol_size(vertex, size) {
         vertex.freeform_symbol_size = Math.max(12, Math.min(128, size));
-        vertex.element.query_selector(".label").set_style({
-            fontSize: `${vertex.freeform_symbol_size}px`,
-        });
+        this.render_freeform_vertex_symbol(vertex);
         vertex.recalculate_size(this);
         for (const edge of this.quiver.transitive_dependencies([vertex], true)) {
             edge.render(this);
@@ -914,16 +919,12 @@ class UI {
     set_selected_freeform_vertex_symbol(symbol) {
         const vertices = Array.from(this.selection).filter((cell) => cell.is_vertex());
         if (vertices.length === 0) return;
-        const labels = {
-            katex: { bullet: "\\bullet", square: "\\square", circle: "\\circ" },
-            typst: { bullet: "bullet", square: "square", circle: "circle" },
-        }[this.settings.get("quiver.renderer")];
         this.history.add(this, [{
-            kind: "label",
-            labels: vertices.map((vertex) => ({
-                cell: vertex,
-                from: vertex.label,
-                to: labels[symbol],
+            kind: "freeform-symbol",
+            symbols: vertices.map((vertex) => ({
+                vertex,
+                from: this.freeform_vertex_symbol(vertex),
+                to: symbol,
             })),
         }], true);
     }
@@ -1226,10 +1227,11 @@ class UI {
             items[vertex.code] = {
                 bounds: this.freeform_bounds_for(vertex).toJSON(),
                 symbol_size: this.freeform_vertex_symbol_size(vertex),
+                symbol: this.freeform_vertex_symbol(vertex),
             };
         }
         const bytes = new TextEncoder().encode(JSON.stringify({
-            version: 2,
+            version: 3,
             items,
             boxes: this.box_store.serialize(),
         }));
@@ -1240,7 +1242,7 @@ class UI {
         try {
             const bytes = Uint8Array.from(atob(payload), (character) => character.charCodeAt(0));
             const data = JSON.parse(new TextDecoder().decode(bytes));
-            if (![1, 2].includes(data.version) || typeof data.items !== "object") {
+            if (![1, 2, 3].includes(data.version) || typeof data.items !== "object") {
                 throw new Error("invalid freeform layout payload");
             }
             for (const [code, item] of Object.entries(data.items)) {
@@ -1250,6 +1252,10 @@ class UI {
                     this.set_freeform_bounds(vertex, bounds);
                     if (item.symbol_size !== undefined) {
                         this.set_freeform_vertex_symbol_size(vertex, item.symbol_size);
+                    }
+                    if (item.symbol !== undefined) {
+                        vertex.freeform_symbol = item.symbol;
+                        this.render_freeform_vertex_symbol(vertex);
                     }
                 }
             }
@@ -1367,6 +1373,8 @@ class UI {
                 label_html: label?.innerHTML || "",
                 font_size: parseFloat(label_style?.fontSize || "26") || 26,
                 colour: colour(vertex.label_colour),
+                symbol: this.freeform_vertex_symbol(vertex),
+                symbol_size: this.freeform_vertex_symbol_size(vertex),
                 frame: {
                     background: style?.backgroundColor || "transparent",
                     border: style?.borderColor || "none",
@@ -3851,7 +3859,7 @@ class UI {
                 // A legacy grid edit can have left a reduced inline font size on
                 // the element; clearing it is essential because the freeform
                 // label must always render at its natural KaTeX/Typst scale.
-                label.style.fontSize = `${this.freeform_vertex_symbol_size(cell)}px`;
+                label.style.fontSize = "26px";
                 max_width = Infinity;
             } else {
                 max_width = this.cell_size(this.cell_width, cell.position.x) * MAX_LABEL_WIDTH;
@@ -4687,6 +4695,12 @@ class History {
                 case "freeform-symbol-size":
                     for (const size of action.sizes) {
                         ui.set_freeform_vertex_symbol_size(size.vertex, size[to]);
+                    }
+                    break;
+                case "freeform-symbol":
+                    for (const symbol of action.symbols) {
+                        symbol.vertex.freeform_symbol = symbol[to];
+                        ui.render_freeform_vertex_symbol(symbol.vertex);
                     }
                     break;
                 case "label":
@@ -6999,8 +7013,7 @@ class Panel {
                 KaTeX.then((katex) => {
                     if (ui.is_freeform() && cell.is_vertex()) {
                         // Never carry a scale-to-grid value into freeform mode.
-                        label.element.style.fontSize =
-                            `${ui.freeform_vertex_symbol_size(cell)}px`;
+                        label.element.style.fontSize = "26px";
                         label.element.style.maxWidth = "none";
                     }
                     katex.render(
@@ -9185,6 +9198,8 @@ export class Vertex extends Cell {
 
             ui.codes.set(this.code, this);
             // The cell content (containing the label).
+            new DOM.Div({ class: "freeform-symbol", "data-symbol": "bullet" })
+                .add_to(this.element);
             new DOM.Div({ class: "content" })
                 .add(new DOM.Div({ class: "label" }))
                 // The identifier that notifies the user how to jump to this cell.
@@ -9206,6 +9221,7 @@ export class Vertex extends Cell {
             left: `${cell_width / 2}px`,
             top: `${cell_height / 2}px`,
         });
+        if (freeform) ui.render_freeform_vertex_symbol(this);
 
         if (construct) {
             ui.panel.render_maths(ui, this);

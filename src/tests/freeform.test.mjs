@@ -101,7 +101,7 @@ test("nodes may be inside or outside a box, but never overlap its border", () =>
 test("freeform labels have no scale-to-fit constraint", () => {
     const ui = readFileSync(resolve("src/ui.mjs"), "utf8");
     const css = readFileSync(resolve("src/main.css"), "utf8");
-    assert.match(ui, /freeform_vertex_symbol_size\(cell\)/);
+    assert.match(ui, /render_freeform_vertex_symbol\(vertex\)/);
     assert.match(css, /\.ui\.freeform \.vertex \.label[\s\S]*max-width: none/);
     assert.match(ui, /\? new Shape\.Endpoint\(Point\.zero\(\)\)/);
     assert.match(ui, /const content_size = freeform[\s\S]*ui\.freeform_vertex_symbol_size\(this\)/);
@@ -109,6 +109,8 @@ test("freeform labels have no scale-to-fit constraint", () => {
     assert.match(css, /\.ui\.freeform \.vertex \.label \{[\s\S]*pointer-events: auto/);
     assert.match(ui, /ui\.is_freeform\(\) && ui\.in_mode\(UIMode\.PointerMove\)/);
     assert.match(ui, /The content element owns pointer events[\s\S]*new UIMode\.PointerMove/);
+    assert.match(ui, /kind: "freeform-symbol"/);
+    assert.match(ui, /fontSize = "26px"/);
 });
 
 test("freeform node placement is pointer-driven and symbol size is history-backed", () => {
@@ -148,6 +150,8 @@ test("properties controls isolate pointer-up events from canvas dismissal", () =
     assert.match(ui, /label-input-container hidden[\s\S]*pointer_event\("up"\).*stopPropagation/);
     assert.match(ui, /this\.label_input\.listen\(pointer_event\("down"\), \(event\) => \{\s*event\.stopImmediatePropagation\(\);/);
     assert.match(ui, /event\.target\.closest\("\.label-input-container"\) !== null/);
+    const css = readFileSync(resolve("src/main.css"), "utf8");
+    assert.match(css, /\.label-input-container \{[\s\S]*z-index: 92/);
 });
 
 test("localhost does not retain a production service-worker cache", () => {

@@ -93,7 +93,14 @@ export const freeform_svg = (scene, { padding = 24, background = null } = {}) =>
     const node_svg = [...nodes.values()].map((node) => {
         const label = node.label_html || xml(node.label || "");
         const frame = node.frame || {};
-        return `<g class="qv-node"><rect x="${number(node.bounds.x)}" y="${number(node.bounds.y)}" width="${number(node.bounds.width)}" height="${number(node.bounds.height)}" rx="${number(frame.radius || 14)}" fill="${frame.background || "transparent"}" stroke="${frame.border || "none"}"/><foreignObject x="${number(node.bounds.x)}" y="${number(node.bounds.y)}" width="${number(node.bounds.width)}" height="${number(node.bounds.height)}"><div xmlns="http://www.w3.org/1999/xhtml" class="qv-node-label" style="color:${node.colour || "#111"};font-size:${number(node.font_size || 26)}px">${label}</div></foreignObject></g>`;
+        const centre = endpoint(node);
+        const size = number(node.symbol_size || 0);
+        const symbol = node.symbol === "circle"
+            ? `<circle cx="${number(centre.x)}" cy="${number(centre.y)}" r="${number(size / 2)}" fill="none" stroke="${node.colour || "#111"}" stroke-width="2"/>`
+            : node.symbol === "square"
+                ? `<rect x="${number(centre.x - size / 2)}" y="${number(centre.y - size / 2)}" width="${size}" height="${size}" fill="${node.colour || "#111"}"/>`
+                : `<circle cx="${number(centre.x)}" cy="${number(centre.y)}" r="${number(size / 2)}" fill="${node.colour || "#111"}"/>`;
+        return `<g class="qv-node"><rect x="${number(node.bounds.x)}" y="${number(node.bounds.y)}" width="${number(node.bounds.width)}" height="${number(node.bounds.height)}" rx="${number(frame.radius || 14)}" fill="${frame.background || "transparent"}" stroke="${frame.border || "none"}"/>${symbol}<foreignObject x="${number(node.bounds.x)}" y="${number(node.bounds.y)}" width="${number(node.bounds.width)}" height="${number(node.bounds.height)}"><div xmlns="http://www.w3.org/1999/xhtml" class="qv-node-label" style="color:${node.colour || "#111"};font-size:${number(node.font_size || 26)}px">${label}</div></foreignObject></g>`;
     }).join("");
     return `<?xml version="1.0" encoding="UTF-8"?>\n<svg xmlns="http://www.w3.org/2000/svg" width="${number(bounds.width)}" height="${number(bounds.height)}" viewBox="${number(bounds.x)} ${number(bounds.y)} ${number(bounds.width)} ${number(bounds.height)}"><defs><marker id="qv-arrowhead" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="context-stroke"/></marker><style>.qv-node-label,.qv-edge-label{display:flex;width:100%;height:100%;align-items:center;justify-content:center;text-align:center;overflow:visible;font:20px KaTeX_Main,serif}.qv-edge-label{font-size:16px;background:transparent}.katex{white-space:nowrap}${scene.styles || ""}</style></defs>${background ? `<rect x="${number(bounds.x)}" y="${number(bounds.y)}" width="${number(bounds.width)}" height="${number(bounds.height)}" fill="${xml(background)}"/>` : ""}${box_svg}${arrows}${node_svg}</svg>`;
 };

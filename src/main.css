@@ -459,6 +459,31 @@ kbd {
     cursor: move;
 }
 
+.ui.freeform .vertex .freeform-symbol {
+    position: absolute;
+    left: 50%; top: 50%;
+    width: var(--freeform-symbol-size, 18px);
+    height: var(--freeform-symbol-size, 18px);
+    transform: translate(-50%, -50%);
+    pointer-events: none;
+    color: var(--cell-colour);
+}
+
+.ui.freeform .vertex .freeform-symbol[data-symbol="bullet"] {
+    border-radius: 50%;
+    background: currentColor;
+}
+
+.ui.freeform .vertex .freeform-symbol[data-symbol="square"] {
+    background: currentColor;
+}
+
+.ui.freeform .vertex .freeform-symbol[data-symbol="circle"] {
+    box-sizing: border-box;
+    border: 2px solid currentColor;
+    border-radius: 50%;
+}
+
 /* Freeform rectangular containers. They sit behind Quiver cells and make
    reusable problem definitions legible without becoming connectable nodes. */
 .diagram-box {
@@ -693,6 +718,9 @@ label.inline {
 
 .label-input-container {
     position: fixed;
+    /* This editor must sit above the canvas (z-index: 1), not merely be
+       visible underneath it. */
+    z-index: 92;
     left: 50%; height: 32px;
     /* Position 8px above the global panel. */
     bottom: calc(8px + 46px);
