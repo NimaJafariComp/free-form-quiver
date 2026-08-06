@@ -148,6 +148,9 @@ export class ArrowStyle {
         this.angle = 0;
         // The offset of the curve (in pixels). May be positive or negative.
         this.shift = 0;
+        // Freeform diagrams keep editable endpoint handles anchored to their graph nodes even
+        // when the rendered arrow itself is offset.
+        this.anchor_handles = false;
         // How much to offset the head and tail of the edge from their endpoints.
         this.shorten = { tail: 0, head: 0 };
         // The shape of the arrow.
@@ -523,6 +526,10 @@ export class Arrow {
                 // Add a handle to the endpoint.
                 const origin = Point.diag(CONSTANTS.HANDLE_RADIUS).sub(endpoint);
                 const source_origin = this.origin().source;
+                // Offset is a visual property of the arrow path. In freeform mode, its endpoint
+                // controls remain semantic node anchors, so reconnecting never requires aiming at
+                // the visually translated path.
+                const handle_shift = this.style.anchor_handles ? Point.zero() : shift;
                 this.requisition_element(this.element, `div.arrow-endpoint.${name}`, {}, {
                     width: `${CONSTANTS.HANDLE_RADIUS * 2}px`,
                     height: `${CONSTANTS.HANDLE_RADIUS * 2}px`,
@@ -531,7 +538,7 @@ export class Arrow {
                     "border-radius": `${CONSTANTS.HANDLE_RADIUS}px`,
                     "transform-origin": `${origin.x}px ${origin.y}px`,
                     transform: `
-                        translate(${shift.x}px, ${shift.y}px)
+                        translate(${handle_shift.x}px, ${handle_shift.y}px)
                         translate(calc(${source_origin.x}px - 50%),
                             calc(${source_origin.y}px - 50%))
                         rotate(${angle}rad)

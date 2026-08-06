@@ -9689,14 +9689,7 @@ export class Edge extends Cell {
         }
 
         UI.update_style(this.arrow, this.options);
-        if (ui.is_freeform() && !this.is_loop()) {
-            // Quiver's legacy Offset translates the entire SVG, including its endpoint handles.
-            // In the wiring editor an arrow must remain attached to its actual graph nodes, so
-            // render that displacement as a Bézier bend instead. The path still separates from
-            // parallel arrows in its middle, while both reconnectable endpoints stay on-node.
-            this.arrow.style.curve += this.arrow.style.shift;
-            this.arrow.style.shift = 0;
-        }
+        this.arrow.style.anchor_handles = ui.is_freeform();
         this.arrow.redraw();
 
         // Safari has a longstanding bug (https://bugs.webkit.org/show_bug.cgi?id=23113),

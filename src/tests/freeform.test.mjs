@@ -199,10 +199,13 @@ test("new arrows default to a flexible 5–95 length range", () => {
     assert.match(ui, /thumbs: 2,[\s\S]*?spacing: 0/);
 });
 
-test("freeform arrow offset bends the path without detaching endpoint handles", () => {
+test("freeform arrow offset preserves its path while endpoint handles stay on nodes", () => {
     const ui = readFileSync(resolve("src/ui.mjs"), "utf8");
-    assert.match(ui, /Quiver's legacy Offset translates the entire SVG, including its endpoint handles/);
-    assert.match(ui, /ui\.is_freeform\(\) && !this\.is_loop\(\)[\s\S]*?this\.arrow\.style\.curve \+= this\.arrow\.style\.shift;[\s\S]*?this\.arrow\.style\.shift = 0/);
+    const arrow = readFileSync(resolve("src/arrow.mjs"), "utf8");
+    assert.match(ui, /this\.arrow\.style\.anchor_handles = ui\.is_freeform\(\)/);
+    assert.match(arrow, /this\.anchor_handles = false/);
+    assert.match(arrow, /const handle_shift = this\.style\.anchor_handles \? Point\.zero\(\) : shift/);
+    assert.match(arrow, /translate\(\$\{handle_shift\.x\}px, \$\{handle_shift\.y\}px\)/);
 });
 
 test("freeform Select All selects graph cells with visible marker feedback", () => {
