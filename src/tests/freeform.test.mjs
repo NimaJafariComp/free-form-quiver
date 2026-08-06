@@ -177,6 +177,9 @@ test("all freeform zoom controls use the clamped canvas zoom operation", () => {
     assert.match(ui, /this\.zoom_view\(-event\.deltaY \/ 100\)/);
     assert.match(ui, /\(\) => ui\.zoom_view\(-0\.25\)/);
     assert.match(ui, /\(\) => ui\.zoom_view\(0\.25\)/);
+    assert.match(ui, /zoom_to_multiplier\(multiplier\)/);
+    assert.match(ui, /Math\.log2\(multiplier\)/);
+    assert.match(ui, /ui\.zoom_to_multiplier\(Number\(event\.target\.value\)\)/);
 });
 
 test("member nodes cross a box border atomically instead of stalling during drag", () => {

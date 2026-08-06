@@ -50,7 +50,7 @@ Object.assign(CONSTANTS, {
     EMBED_PADDING: 24,
     /// Minimum and maximum zoom levels.
     MIN_ZOOM: -2.5,
-    MAX_ZOOM: 1,
+    MAX_ZOOM: 2,
     // The default engine for rendering mathematics. The options are `katex` and `typst`.
     DEFAULT_RENDERER: "katex",
     // Preamble used to render the Typst labels.
@@ -3898,6 +3898,16 @@ class UI {
         return true;
     }
 
+    /// Set a visible zoom multiplier directly (used by the 1×–4× control).
+    zoom_to_multiplier(multiplier) {
+        if (!Number.isFinite(multiplier) || multiplier <= 0) return false;
+        const zoom = clamp(CONSTANTS.MIN_ZOOM, Math.log2(multiplier), CONSTANTS.MAX_ZOOM);
+        if (zoom === this.scale) return false;
+        this.pan_to(this.view, zoom);
+        this.toolbar.update(this);
+        return true;
+    }
+
     /// Centre the view with respect to the selection, or the entire quiver if no cells are
     /// selected.
     centre_view() {
@@ -6838,8 +6848,10 @@ class Panel {
         const png_scale = new DOM.Select(
             [["1", "1×"], ["2", "2×"], ["3", "3×"], ["4", "4×"]],
             "2",
-            { title: "PNG export scale" },
-        );
+            { title: "Canvas zoom and PNG export scale" },
+        ).listen("change", (event) => {
+            ui.zoom_to_multiplier(Number(event.target.value));
+        });
 
         // Create the `<select>` for the current maths renderer.
         const renderer_select = new DOM.Select(
