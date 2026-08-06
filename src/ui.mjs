@@ -5650,7 +5650,9 @@ class Panel {
         create_option_slider("Length", "Arrow length", "length", "l", {
             min: 0,
             max: 100,
-            step: 10,
+            // One-percent precision keeps both endpoints freely adjustable without the former
+            // coarse 10% snapping.
+            step: 1,
             thumbs: 2,
             // The handles control source and target shortening independently. They may meet,
             // but never cross, so either end can be adjusted without moving the other.

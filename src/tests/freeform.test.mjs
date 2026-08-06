@@ -195,6 +195,7 @@ test("new arrows default to a flexible 5–95 length range", () => {
     assert.match(ui, /shorten: \{ source: 5, target: 5 \}/);
     assert.match(ui, /suggested_edge_options\(ui, source, target\)[\s\S]*?source: source\.level === 0 \? 5[\s\S]*?target: target\.level === 0 \? 5/);
     assert.match(ui, /case "length":\s*values = \[5, 95\]/);
+    assert.match(ui, /Arrow length[\s\S]*?step: 1,[\s\S]*?thumbs: 2/);
     assert.match(ui, /thumbs: 2,[\s\S]*?spacing: 0/);
 });
 
