@@ -996,16 +996,25 @@ class UI {
     add_arrow_from_selection() {
         if (!this.is_freeform()) return;
         if (this.arrow_placement_active) {
-            this.arrow_placement_source?.element.class_list.remove("source");
-            this.arrow_placement_active = false;
-            this.arrow_placement_source = null;
-            if (this.in_mode(UIMode.Connect)) this.switch_mode(UIMode.default);
+            this.cancel_freeform_arrow_placement();
         } else {
             this.arrow_placement_active = true;
             this.arrow_placement_source = null;
+            this.element.class_list.add("placing-arrow");
+            this.toolbar.update(this);
         }
-        this.element.class_list.toggle("placing-arrow", this.arrow_placement_active);
+    }
+
+    /// Cancel an explicit freeform arrow gesture without creating an edge.
+    cancel_freeform_arrow_placement() {
+        if (!this.arrow_placement_active) return false;
+        this.arrow_placement_source?.element.class_list.remove("source");
+        this.arrow_placement_active = false;
+        this.arrow_placement_source = null;
+        this.element.class_list.remove("placing-arrow");
+        if (this.in_mode(UIMode.Connect)) this.switch_mode(UIMode.default);
         this.toolbar.update(this);
+        return true;
     }
 
     /// Select every editable graph cell in the freeform scene. Boxes remain
@@ -2256,6 +2265,18 @@ class UI {
             }
         });
 
+        // Inspect the target before individual canvas controls can stop event
+        // bubbling. This guarantees that clicking an existing arrow or empty
+        // space cancels a pending explicit arrow preview.
+        document.addEventListener(pointer_event("down"), (event) => {
+            if (event.button !== 0 || !this.arrow_placement_active
+                || !this.in_mode(UIMode.Connect)) return;
+            const target = event.target instanceof Element ? event.target : null;
+            if (target?.closest(".vertex") !== null
+                || target?.closest('.action[data-name="add-arrow"]') !== null) return;
+            this.cancel_freeform_arrow_placement();
+        }, { capture: true });
+
         this.reposition_focus_point(Position.zero());
 
         this.element.listen(pointer_event("down"), (event) => {
@@ -2264,6 +2285,15 @@ class UI {
                 return;
             }
             if (event.button === 0) {
+                // An explicit arrow preview is only retained while the user
+                // selects a vertex target. Empty canvas, arrows, boxes, and
+                // other non-vertex targets cancel it cleanly.
+                const vertex_target = event.target instanceof Element
+                    ? event.target.closest(".vertex") : null;
+                if (this.arrow_placement_active && this.in_mode(UIMode.Connect)
+                    && vertex_target === null) {
+                    this.cancel_freeform_arrow_placement();
+                }
                 // Usually, if `Alt` or `Control` have been held we will have already switched to
                 // the Pan mode. However, if the window is not in focus, they will not have been
                 // detected, so we switch modes on pointer click.
@@ -3832,6 +3862,10 @@ class UI {
     /// Cancel the creation of a new vertex or edge via clicking or dragging.
     cancel_creation() {
         let effectful = false;
+
+        if (this.cancel_freeform_arrow_placement()) {
+            effectful = true;
+        }
 
         // Stop trying to connect cells.
         if (this.in_mode(UIMode.Connect)) {

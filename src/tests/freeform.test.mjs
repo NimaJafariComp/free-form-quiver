@@ -156,6 +156,9 @@ test("freeform Add arrow waits for explicit source and target clicks", () => {
     assert.match(ui, /const mode = new UIMode\.Connect\(this, vertex, false\)/);
     assert.match(ui, /mode\.update\(this, this\.offset_from_event\(event\)\)/);
     assert.match(ui, /this\.in_mode\(UIMode\.Connect\) && !this\.arrow_placement_active/);
+    assert.match(ui, /cancel_freeform_arrow_placement\(\)/);
+    assert.match(ui, /target\?\.closest\("\.vertex"\) !== null/);
+    assert.match(ui, /\{ capture: true \}/);
     assert.match(ui, /UIMode\.Connect\.create_edge\(this, this\.arrow_placement_source, vertex\)/);
     assert.match(ui, /ui\.place_freeform_arrow_endpoint\(this, event\)/);
     assert.match(ui, /enable_if\("add-arrow", ui\.is_freeform\(\) && ui\.in_mode\(\.\.\.default_pan\)\)/);
