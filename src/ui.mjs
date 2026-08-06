@@ -9268,6 +9268,12 @@ class Cell {
                 }
 
                 if (ui.in_mode(UIMode.Connect)) {
+                    // Freeform arrows are an explicit two-click gesture. Their source and target
+                    // are handled on pointer-down above; do not let Quiver's legacy drag-to-connect
+                    // pointer-up path complete or reset that gesture in between those two clicks.
+                    if (ui.is_freeform() && ui.arrow_placement_active) {
+                        return;
+                    }
                     event.stopImmediatePropagation();
 
                     // Connect two cells if the source is different to the target.
