@@ -9,7 +9,7 @@ const scene = {
         { id: "target", bounds: { x: 440, y: 200, width: 120, height: 64 }, label: "B" },
     ],
     boxes: [{ id: "bank", kind: "problem-bank", title: "Problem bank", bounds: { x: 0, y: 0, width: 640, height: 360 } }],
-    edges: [{ source: "source", target: "target", label: "f", options: { curve: 1, style: { head: { name: "arrowhead" }, body: { name: "dashed" }, tail: { name: "none" } } } }],
+    edges: [{ source: "source", target: "target", label: "f", options: { curve: 1, shorten: { source: 5, target: 20 }, style: { head: { name: "arrowhead" }, body: { name: "dashed" }, tail: { name: "none" } } } }],
 };
 
 test("freeform exporters use absolute scene bounds rather than grid positions", () => {
@@ -17,6 +17,8 @@ test("freeform exporters use absolute scene bounds rather than grid positions", 
     const tikz = freeform_tikz(scene).data;
     assert.match(tikz, /\\freeformquiverbox\{0\}\{0\}\{640\}\{360\}/);
     assert.match(tikz, /\(qv-source\) to\[bend left=14\]/);
+    assert.match(tikz, /shorten <=.*pt/);
+    assert.match(tikz, /shorten >=.*pt/);
     assert.doesNotMatch(tikz, /tikzcd|Position|row sep/);
 });
 

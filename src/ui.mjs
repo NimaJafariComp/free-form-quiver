@@ -1033,6 +1033,44 @@ class UI {
         return true;
     }
 
+    /// Resolve a freeform node from the pointer against the model geometry, rather than relying
+    /// on DOM hit testing. Arrow endpoint controls and node markers overlap in separate layers,
+    /// so `elementFromPoint` is not a dependable source of a reconnection target.
+    freeform_vertex_at_pointer(event) {
+        if (!Number.isFinite(event.clientX) || !Number.isFinite(event.clientY)) return null;
+        const pointer = this.offset_from_event(event);
+        let result = null;
+        let distance = Infinity;
+        for (const vertex of this.quiver.cells[0] || []) {
+            const bounds = this.freeform_bounds_for(vertex);
+            const centre_x = bounds.x + bounds.width / 2;
+            const centre_y = bounds.y + bounds.height / 2;
+            const radius = Math.max(14, this.freeform_vertex_symbol_size(vertex) / 2 + 6);
+            const candidate_distance = Math.hypot(pointer.x - centre_x, pointer.y - centre_y);
+            if (candidate_distance <= radius && candidate_distance < distance) {
+                result = vertex;
+                distance = candidate_distance;
+            }
+        }
+        return result;
+    }
+
+    update_freeform_reconnect_target(event) {
+        if (!this.is_freeform() || !this.in_mode(UIMode.Connect)
+            || this.mode.reconnect === null) return;
+        const target = this.freeform_vertex_at_pointer(event);
+        if (this.mode.target !== null && this.mode.target !== target) {
+            this.mode.target.element.class_list.remove("target");
+            this.mode.target = null;
+        }
+        if (target !== null && UIMode.Connect.valid_connection(
+            this, this.mode.source, target, this.mode.reconnect
+        )) {
+            this.mode.target = target;
+            target.element.class_list.add("target");
+        }
+    }
+
     /// Complete a freeform endpoint reconnection from the actual pointer release position.
     /// Endpoint handles sit in the arrow SVG, so browsers do not always dispatch the release to
     /// a vertex's content element after a drag.  Resolve the vertex beneath the pointer here so
@@ -1049,9 +1087,10 @@ class UI {
         }
         const vertex_element = candidates.find((candidate) => candidate instanceof Element
             && candidate.closest(".vertex") !== null)?.closest(".vertex");
-        const target = vertex_element === undefined ? null : this.quiver.all_cells().find((cell) => {
+        const dom_target = vertex_element === undefined ? null : this.quiver.all_cells().find((cell) => {
             return cell.is_vertex() && cell.element.element === vertex_element;
         });
+        const target = this.mode.target || this.freeform_vertex_at_pointer(event) || dom_target;
 
         if (target === undefined || target === null || !UIMode.Connect.valid_connection(
             this, this.mode.source, target, this.mode.reconnect
@@ -2736,6 +2775,7 @@ class UI {
             if (this.is_freeform()) {
                 if (this.in_mode(UIMode.Connect)) {
                     event.preventDefault();
+                    this.update_freeform_reconnect_target(event);
                     this.mode.update(this, this.offset_from_event(event));
                 }
                 return;

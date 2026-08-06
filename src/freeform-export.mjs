@@ -107,7 +107,41 @@ export const freeform_svg = (scene, { padding = 24, background = null } = {}) =>
 
 const tikz_colour = (colour, fallback = "black") => /^#[0-9a-f]{6}$/i.test(colour || "") ? colour : fallback;
 
-const tikz_arrow_options = (edge) => {
+// The editor stores arrow length as the percentage trimmed from each end of
+// its rendered curve. TikZ's `shorten <=` / `shorten >=` take dimensions, so
+// convert the same proportion of the absolute freeform geometry to points.
+const edge_length = (edge, source, target) => {
+    const start = endpoint(source);
+    const end = endpoint(target);
+    if (source.id === target.id) {
+        const radius = Math.max(34, Math.abs(edge.options?.radius || 1) * 20);
+        return 2 * Math.PI * radius;
+    }
+    const curve = Number(edge.options?.curve || 0);
+    if (curve === 0) return Math.hypot(end.x - start.x, end.y - start.y);
+
+    const dx = end.x - start.x;
+    const dy = end.y - start.y;
+    const distance = Math.hypot(dx, dy) || 1;
+    const control = {
+        x: (start.x + end.x) / 2 - dy / distance * curve * 24,
+        y: (start.y + end.y) / 2 + dx / distance * curve * 24,
+    };
+    let length = 0;
+    let previous = start;
+    for (let step = 1; step <= 32; step += 1) {
+        const t = step / 32;
+        const point = {
+            x: (1 - t) ** 2 * start.x + 2 * (1 - t) * t * control.x + t ** 2 * end.x,
+            y: (1 - t) ** 2 * start.y + 2 * (1 - t) * t * control.y + t ** 2 * end.y,
+        };
+        length += Math.hypot(point.x - previous.x, point.y - previous.y);
+        previous = point;
+    }
+    return length;
+};
+
+const tikz_arrow_options = (edge, source, target) => {
     const options = ["qv arrow"];
     const style = edge.options?.style || {};
     const body = style.body?.name;
@@ -120,6 +154,12 @@ const tikz_arrow_options = (edge) => {
     if (style.tail?.name === "hook") options.push("Hooks-");
     if (style.tail?.name === "mono") options.push("-{Bar[width=4pt]}-");
     if (edge.colour) options.push(`draw=${tikz_colour(edge.colour)}`);
+    const length = edge_length(edge, source, target);
+    const shorten = edge.options?.shorten || {};
+    const source_shorten = Math.max(0, Number(shorten.source) || 0) / 100 * length * PX_TO_PT;
+    const target_shorten = Math.max(0, Number(shorten.target) || 0) / 100 * length * PX_TO_PT;
+    if (source_shorten > 0) options.push(`shorten <=${number(source_shorten)}pt`);
+    if (target_shorten > 0) options.push(`shorten >=${number(target_shorten)}pt`);
     return options.join(", ");
 };
 
@@ -143,7 +183,7 @@ export const freeform_tikz = (scene, { source_url = "" } = {}) => {
         const source = nodes.get(edge.source);
         const target = nodes.get(edge.target);
         if (!source || !target) continue;
-        const options = tikz_arrow_options(edge);
+        const options = tikz_arrow_options(edge, source, target);
         const curve = Number(edge.options?.curve || 0);
         const label = edge.label ? ` node[midway, fill=white, inner sep=1pt] {$${edge.label}$}` : "";
         if (source.id === target.id) {
