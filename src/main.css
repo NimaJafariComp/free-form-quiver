@@ -2047,7 +2047,12 @@ label input[type="checkbox"]:checked::before {
 .ui.freeform .arrow-endpoint {
     box-sizing: border-box;
     background: transparent;
-    border: var(--ui-blue) 2px solid;
+    /* Orange dashed rings mean “reconnect this arrow”, distinct from a selected node's blue halo. */
+    border: var(--ui-orange) 2px dashed;
+}
+
+.ui.freeform .arrow-endpoint:hover {
+    border-color: var(--ui-orange);
 }
 
 .arrow-endpoint:hover {
