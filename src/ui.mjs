@@ -1047,6 +1047,7 @@ class UI {
         this.deselect_free_arrow();
         this.selected_free_arrow_id = arrow.id;
         arrow.element.classList.add("selected");
+        this.select(arrow.edge);
     }
 
     render_free_arrow(arrow) {
@@ -1097,6 +1098,22 @@ class UI {
         head.classList.add("free-arrow-head");
         svg.append(line, head);
         const arrow = { id: arrow_id, source: { ...source }, target: { ...target }, element: svg, line, head, handles: {} };
+        const anchors = {};
+        for (const [name, point] of Object.entries({ source, target })) {
+            const anchor = new Vertex(this, "", new Position(this.next_free_arrow_id++, 0));
+            anchor.freeform_anchor = true;
+            anchor.element.class_list.add("freeform-anchor");
+            this.set_freeform_bounds(anchor, new Bounds(point.x, point.y, 1, 1));
+            anchors[name] = anchor;
+        }
+        arrow.anchors = anchors;
+        arrow.edge = new Edge(this, "", anchors.source, anchors.target, { shorten: { source: 0, target: 0 } });
+        arrow.edge.freeform_arrow = arrow;
+        const render_edge = arrow.edge.render.bind(arrow.edge);
+        arrow.edge.render = (ui) => {
+            render_edge(ui);
+            this.render_free_arrow(arrow);
+        };
         arrow.handles.source = make_handle("source");
         arrow.handles.target = make_handle("target");
         svg.append(arrow.handles.source, arrow.handles.target);
@@ -1701,7 +1718,7 @@ class UI {
     /// the optional accessibility grid and old integer cell positions are deliberately absent.
     freeform_scene(include_styles = false) {
         const colour = (value) => value?.css?.() || "#111";
-        const nodes = Array.from(this.quiver.cells[0] || []).map((vertex) => {
+        const nodes = Array.from(this.quiver.cells[0] || []).filter((vertex) => !vertex.freeform_anchor).map((vertex) => {
             const content = vertex.content_element?.element;
             const label = vertex.element.query_selector(".label").element;
             const style = content ? getComputedStyle(content) : null;
@@ -1723,7 +1740,7 @@ class UI {
                 },
             };
         });
-        const edges = Array.from(this.quiver.all_cells()).filter((cell) => cell.is_edge()).map((edge) => ({
+        const edges = Array.from(this.quiver.all_cells()).filter((cell) => cell.is_edge() && !cell.freeform_arrow).map((edge) => ({
             source: edge.source.code,
             target: edge.target.code,
             label: edge.label,
@@ -2321,7 +2338,11 @@ class UI {
             if (this.free_arrow_drag !== null) {
                 const { arrow, endpoint } = this.free_arrow_drag;
                 arrow[endpoint] = this.offset_from_event(event);
-                this.render_free_arrow(arrow);
+                this.set_freeform_bounds(
+                    arrow.anchors[endpoint],
+                    new Bounds(arrow[endpoint].x, arrow[endpoint].y, 1, 1),
+                );
+                arrow.edge.render(this);
                 return;
             }
             if (this.in_mode(UIMode.Pan)) {
@@ -4052,6 +4073,7 @@ class UI {
     deselect(cell = null) {
         if (cell === null) {
             this.deselect_box();
+            this.deselect_free_arrow();
             for (cell of this.selection) {
                 cell.deselect();
             }
@@ -4062,6 +4084,7 @@ class UI {
             this.selection = new Set(this.selection);
             if (this.selection.delete(cell)) {
                 cell.deselect();
+                if (cell.freeform_arrow) this.deselect_free_arrow();
             }
         }
 
