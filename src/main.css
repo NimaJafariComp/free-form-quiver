@@ -447,6 +447,10 @@ kbd {
     cursor: crosshair;
 }
 
+.ui.freeform.placing-text .canvas {
+    cursor: text;
+}
+
 .ui.default .vertex {
     cursor: move;
 }
@@ -517,6 +521,22 @@ kbd {
     box-sizing: border-box;
     border: 2px solid currentColor;
     border-radius: 50%;
+}
+
+.ui.freeform .vertex.freeform-text .freeform-symbol {
+    display: none;
+}
+
+.ui.freeform .vertex.freeform-text .label {
+    left: 0;
+    top: 50%;
+    transform: translate(0, -50%);
+}
+
+.ui.freeform .vertex.freeform-text.selected .label {
+    outline: 2px solid var(--ui-blue);
+    outline-offset: 4px;
+    border-radius: 3px;
 }
 
 /* Selection feedback for point-like freeform nodes. This is a halo around

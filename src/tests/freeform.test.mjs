@@ -207,6 +207,19 @@ test("new free-arrow labels use a stable centred alignment", () => {
     assert.match(ui, /shorten: \{ source: 0, target: 0 \},\s*label_alignment: "centre"/);
 });
 
+test("freeform text is marker-free, editable, and saved with the diagram", () => {
+    const ui = readFileSync(resolve("src/ui.mjs"), "utf8");
+    const css = readFileSync(resolve("src/main.css"), "utf8");
+    assert.match(ui, /add_freeform_text\(centre = this\.view\)/);
+    assert.match(ui, /arm_freeform_text_placement\(\)/);
+    assert.match(ui, /if \(text_only\) \{\s*vertex\.freeform_text = true/);
+    assert.match(ui, /text: Boolean\(vertex\.freeform_text\)/);
+    assert.match(ui, /vertex\.freeform_text\) continue/);
+    assert.match(ui, /"Add text",\s*"add-text"/);
+    assert.match(css, /\.vertex\.freeform-text \.freeform-symbol[\s\S]*?display: none/);
+    assert.match(css, /\.vertex\.freeform-text \.label[\s\S]*?left: 0/);
+});
+
 test("freeform save state contains every diagram-specific persistence contract", () => {
     const ui = readFileSync(resolve("src/ui.mjs"), "utf8");
     const quiver = readFileSync(resolve("src/quiver.mjs"), "utf8");

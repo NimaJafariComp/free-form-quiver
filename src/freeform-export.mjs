@@ -118,7 +118,7 @@ export const freeform_svg = (scene, { padding = 24, background = null, rasterize
         const frame = node.frame || {};
         const centre = endpoint(node);
         const size = number(node.symbol_size || 0);
-        const symbol = node.symbol === "circle"
+        const symbol = node.text || node.symbol === "none" ? "" : node.symbol === "circle"
             ? `<circle cx="${number(centre.x)}" cy="${number(centre.y)}" r="${number(size / 2)}" fill="none" stroke="${node.colour || "#111"}" stroke-width="2"/>`
             : node.symbol === "square"
                 ? `<rect x="${number(centre.x - size / 2)}" y="${number(centre.y - size / 2)}" width="${size}" height="${size}" fill="${node.colour || "#111"}"/>`
@@ -127,9 +127,12 @@ export const freeform_svg = (scene, { padding = 24, background = null, rasterize
         // border.  Only serialise a frame when it has a visible border width.
         const frame_stroke = Number(frame.border_width || 0) > 0 ? frame.border : "none";
         const raster_label = plain_text(node.label);
+        const label_x = node.text ? centre.x : centre.x + Number(node.symbol_size || 0) / 2 + 6;
+        const label_left = node.text ? centre.x : node.bounds.x;
+        const label_width = node.text ? 480 : node.bounds.width;
         const node_label = rasterize
-            ? `<text x="${number(centre.x + Number(node.symbol_size || 0) / 2 + 6)}" y="${number(centre.y)}" dominant-baseline="middle" fill="${node.colour || "#111"}" font-family="KaTeX_Main, serif" font-size="${number(node.font_size || 26)}">${xml(raster_label)}</text>`
-            : `<foreignObject x="${number(node.bounds.x)}" y="${number(node.bounds.y)}" width="${number(node.bounds.width)}" height="${number(node.bounds.height)}"><div xmlns="http://www.w3.org/1999/xhtml" class="qv-node-label" style="color:${node.colour || "#111"};font-size:${number(node.font_size || 26)}px">${label}</div></foreignObject>`;
+            ? `<text x="${number(label_x)}" y="${number(centre.y)}" dominant-baseline="middle" fill="${node.colour || "#111"}" font-family="KaTeX_Main, serif" font-size="${number(node.font_size || 26)}">${xml(raster_label)}</text>`
+            : `<foreignObject x="${number(label_left)}" y="${number(node.bounds.y)}" width="${number(label_width)}" height="${number(node.bounds.height)}"><div xmlns="http://www.w3.org/1999/xhtml" class="qv-node-label" style="color:${node.colour || "#111"};font-size:${number(node.font_size || 26)}px;justify-content:${node.text ? "flex-start" : "center"};text-align:${node.text ? "left" : "center"}">${label}</div></foreignObject>`;
         return `<g class="qv-node"><rect x="${number(node.bounds.x)}" y="${number(node.bounds.y)}" width="${number(node.bounds.width)}" height="${number(node.bounds.height)}" rx="${number(frame.radius || 14)}" fill="${frame.background || "transparent"}" stroke="${frame_stroke || "none"}"/>${symbol}${node_label}</g>`;
     }).join("");
     // Export only the styles owned by the format.  Copying `document.styleSheets` includes

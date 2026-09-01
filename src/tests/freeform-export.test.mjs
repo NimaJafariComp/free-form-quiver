@@ -78,6 +78,15 @@ test("SVG supports an opaque background for PNG rasterisation", () => {
     assert.match(svg, /<rect x="0" y="0" width="48" height="48" fill="white"/);
 });
 
+test("text-only items export without a node marker", () => {
+    const svg = freeform_svg({
+        nodes: [{ id: "caption", text: true, bounds: { x: 20, y: 30, width: 1, height: 1 }, label: "Caption" }],
+        boxes: [], edges: [],
+    });
+    assert.match(svg, /Caption/);
+    assert.doesNotMatch(svg, /<circle/);
+});
+
 test("overflowing labels, external nodes, and arrow styles remain scene content", () => {
     const styles = ["cell", "dashed", "dotted", "squiggly", "barred", "double barred", "bullet solid", "bullet hollow"];
     const fixture = {
