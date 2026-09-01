@@ -250,6 +250,9 @@ export const download_svg = (scene, filename, options = {}) => {
 
 export const download_png = async (scene, filename, { scale = 2, ...options } = {}) => {
     const bounds = freeform_content_bounds(scene);
+    // PNGs are commonly viewed outside the editor, where transparent pixels are often displayed
+    // against a dark surface. Use the editor's normal paper background unless explicitly set.
+    const png_options = { background: "white", ...options };
     const render = async (svg) => {
         const image = new Image();
         const url = URL.createObjectURL(new Blob([svg], { type: "image/svg+xml;charset=utf-8" }));
@@ -270,11 +273,11 @@ export const download_png = async (scene, filename, { scale = 2, ...options } = 
     };
     let blob;
     try {
-        blob = await render(freeform_svg(scene, options));
+        blob = await render(freeform_svg(scene, png_options));
     } catch (_) {
         // HTML inside SVG foreignObjects taints a canvas in some browsers. Retry with native SVG
         // text, which is self-contained and safe to rasterise.
-        blob = await render(freeform_svg(scene, { ...options, rasterize: true }));
+        blob = await render(freeform_svg(scene, { ...png_options, rasterize: true }));
     }
     {
         const png_url = URL.createObjectURL(blob);

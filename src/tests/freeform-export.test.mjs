@@ -73,6 +73,11 @@ test("TikZ preserves node-independent free arrows for re-import", () => {
     assert.match(tikz, /\\freeformquiverarrow\{12\}\{20\}\{96\}\{44\}/);
 });
 
+test("SVG supports an opaque background for PNG rasterisation", () => {
+    const svg = freeform_svg({ nodes: [], boxes: [], edges: [] }, { background: "white" });
+    assert.match(svg, /<rect x="0" y="0" width="48" height="48" fill="white"/);
+});
+
 test("overflowing labels, external nodes, and arrow styles remain scene content", () => {
     const styles = ["cell", "dashed", "dotted", "squiggly", "barred", "double barred", "bullet solid", "bullet hollow"];
     const fixture = {
