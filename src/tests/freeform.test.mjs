@@ -171,9 +171,9 @@ test("freeform arrow choices use a readable vertical submenu", () => {
     const ui = readFileSync(resolve("src/ui.mjs"), "utf8");
     const css = readFileSync(resolve("src/main.css"), "utf8");
     assert.match(ui, /arrows\.class_list\.add\("arrow-menu"\)/);
-    assert.match(css, /\.subtoolbar\.arrow-menu \{[\s\S]*?min-width: 152px/);
-    assert.match(css, /\.subtoolbar\.arrow-menu \.action \{[\s\S]*?display: flex[\s\S]*?width: 152px/);
-    assert.match(css, /\.subtoolbar\.arrow-menu \.action \.name \{[\s\S]*?position: static/);
+    assert.match(css, /\.subtoolbar\.arrow-menu,[\s\S]*?\.subtoolbar\.text-menu \{[\s\S]*?min-width: 152px/);
+    assert.match(css, /\.subtoolbar\.arrow-menu \.action,[\s\S]*?\.subtoolbar\.text-menu \.action \{[\s\S]*?display: flex[\s\S]*?width: 152px/);
+    assert.match(css, /\.subtoolbar\.arrow-menu \.action \.name,[\s\S]*?\.subtoolbar\.text-menu \.action \.name \{[\s\S]*?position: static/);
 });
 
 test("the LaTeX importer detects this fork's freeform TikZ vocabulary", () => {
@@ -227,6 +227,18 @@ test("freeform text is marker-free, editable, and saved with the diagram", () =>
     assert.match(ui, /"Add text",\s*"add-text"/);
     assert.match(css, /\.vertex\.freeform-text \.freeform-symbol[\s\S]*?display: none/);
     assert.match(css, /\.vertex\.freeform-text \.label[\s\S]*?left: 0/);
+});
+
+test("text settings rewrite the selected item's LaTeX while preserving its other setting", () => {
+    const ui = readFileSync(resolve("src/ui.mjs"), "utf8");
+    const css = readFileSync(resolve("src/main.css"), "utf8");
+    assert.match(ui, /parse_freeform_text_latex\(label\)/);
+    assert.match(ui, /\\\\\$\{font_command\}\{\$\{content\}\}/);
+    assert.match(ui, /\\\\\$\{size\} \$\{content\}/);
+    assert.match(ui, /font \|\| current\.font/);
+    assert.match(ui, /size \|\| current\.size/);
+    assert.match(ui, /add_subtoolbar\("Text", "text-style"\)/);
+    assert.match(css, /\.subtoolbar\.text-menu/);
 });
 
 test("freeform save state contains every diagram-specific persistence contract", () => {

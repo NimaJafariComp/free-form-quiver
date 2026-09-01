@@ -979,6 +979,56 @@ class UI {
         return vertex.label === "" ? token : `${token} ${vertex.label}`;
     }
 
+    parse_freeform_text_latex(label) {
+        let content = label.trim();
+        let font = "normal";
+        let size = "normal";
+        // The text controls own only their outer wrappers, so changing a choice replaces the
+        // previous choice while preserving the actual LaTeX written by the user.
+        let unwrapped = true;
+        while (unwrapped) {
+            unwrapped = false;
+            const font_wrapper = content.match(/^\\(mathrm|mathbf|mathit|mathsf)\{([\s\S]*)\}$/);
+            const size_wrapper = content.match(/^\\(small|normalsize|large|Large|LARGE|huge|Huge)\s+([\s\S]*)$/);
+            if (font_wrapper !== null) {
+                font = { mathrm: "normal", mathbf: "bold", mathit: "italic", mathsf: "sans" }[font_wrapper[1]];
+                content = font_wrapper[2];
+                unwrapped = true;
+            } else if (size_wrapper !== null) {
+                size = size_wrapper[1] === "normalsize" ? "normal" : size_wrapper[1];
+                content = size_wrapper[2];
+                unwrapped = true;
+            }
+        }
+        return { content, font, size };
+    }
+
+    format_freeform_text_latex(label, font, size) {
+        let { content } = this.parse_freeform_text_latex(label);
+        const font_command = { normal: "mathrm", bold: "mathbf", italic: "mathit", sans: "mathsf" }[font];
+        if (font_command !== "mathrm") content = `\\${font_command}{${content}}`;
+        if (size !== "normal") content = `\\${size} ${content}`;
+        return content;
+    }
+
+    set_selected_freeform_text_style(font = null, size = null) {
+        const texts = Array.from(this.selection).filter((cell) => cell.freeform_text);
+        if (texts.length === 0) return;
+        const labels = texts.map((cell) => {
+            const current = this.parse_freeform_text_latex(cell.label);
+            return {
+                cell,
+                from: cell.label,
+                to: this.format_freeform_text_latex(
+                    cell.label,
+                    font || current.font,
+                    size || current.size,
+                ),
+            };
+        }).filter((label) => label.from !== label.to);
+        if (labels.length > 0) this.history.add(this, [{ kind: "label", labels }], true);
+    }
+
     render_freeform_vertex_symbol(vertex) {
         const symbol = vertex.element.query_selector(".freeform-symbol");
         if (symbol === null) return;
@@ -8468,12 +8518,12 @@ class Toolbar {
                 }
             });
 
-        const add_action = (label, name, combinations, action, element = this.element) => {
+        const add_action = (label, name, combinations, action, element = this.element, icon = name) => {
             const shortcut_name = Shortcuts.name(combinations);
 
             const button = new DOM.Element("button", { class: "action", "data-name": name })
                 .add(new DOM.Element("span", { class: "symbol" }).add(
-                    new DOM.Element("img", { src: `icons/${name}.svg` })
+                    new DOM.Element("img", { src: `icons/${icon}.svg` })
                 ))
                 .add(new DOM.Element("span", { class: "name" }).add(label))
                 .add(new DOM.Element("span", { class: "shortcut" }).add(shortcut_name))
@@ -8551,6 +8601,18 @@ class Toolbar {
             [{ key: "T", context: Shortcuts.SHORTCUT_PRIORITY.Defer }],
             () => ui.arm_freeform_text_placement(),
         );
+
+        const text_menu = add_subtoolbar("Text", "text-style");
+        text_menu.class_list.add("text-menu");
+        const text_style = (font, size) => () => ui.set_selected_freeform_text_style(font, size);
+        add_action("Normal", "text-normal", [], text_style("normal", null), text_menu, "text-style");
+        add_action("Bold", "text-bold", [], text_style("bold", null), text_menu, "text-style");
+        add_action("Italic", "text-italic", [], text_style("italic", null), text_menu, "text-style");
+        add_action("Sans-serif", "text-sans", [], text_style("sans", null), text_menu, "text-style");
+        add_action("Small", "text-small", [], text_style(null, "small"), text_menu, "text-style");
+        add_action("Normal size", "text-normal-size", [], text_style(null, "normal"), text_menu, "text-style");
+        add_action("Large", "text-large", [], text_style(null, "Large"), text_menu, "text-style");
+        add_action("Huge", "text-huge", [], text_style(null, "huge"), text_menu, "text-style");
 
         add_action(
             "Node smaller",
@@ -9041,6 +9103,8 @@ class Toolbar {
             && ui.history.present < ui.history.actions.length);
         enable_if("add-node", ui.is_freeform() && ui.in_mode(...default_pan));
         enable_if("add-text", ui.is_freeform() && ui.in_mode(...default_pan));
+        const selected_text = Array.from(ui.selection).filter((cell) => cell.freeform_text);
+        enable_if("text-style", ui.is_freeform() && ui.in_mode(...default_pan) && selected_text.length > 0);
         const selected_vertices = Array.from(ui.selection).filter((cell) => cell.is_vertex() && !cell.freeform_text);
         enable_if("node-smaller", ui.is_freeform() && ui.in_mode(...default_pan)
             && selected_vertices.length > 0);
