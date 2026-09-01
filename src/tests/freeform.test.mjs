@@ -233,8 +233,9 @@ test("text settings rewrite the selected item's LaTeX while preserving its other
     const ui = readFileSync(resolve("src/ui.mjs"), "utf8");
     const css = readFileSync(resolve("src/main.css"), "utf8");
     assert.match(ui, /parse_freeform_text_latex\(label\)/);
+    assert.match(ui, /size === "small" \? "scriptscriptstyle" : size/);
     assert.match(ui, /\\\\\$\{font_command\}\{\$\{content\}\}/);
-    assert.match(ui, /\\\\\$\{size\} \$\{content\}/);
+    assert.match(ui, /\\\\\$\{size_command\} \$\{content\}/);
     assert.match(ui, /font \|\| current\.font/);
     assert.match(ui, /size \|\| current\.size/);
     assert.match(ui, /add_subtoolbar\("Text", "text-style"\)/);

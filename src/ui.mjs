@@ -989,13 +989,14 @@ class UI {
         while (unwrapped) {
             unwrapped = false;
             const font_wrapper = content.match(/^\\(mathrm|mathbf|mathit|mathsf)\{([\s\S]*)\}$/);
-            const size_wrapper = content.match(/^\\(small|normalsize|large|Large|LARGE|huge|Huge)\s+([\s\S]*)$/);
+            const size_wrapper = content.match(/^\\(small|scriptscriptstyle|normalsize|large|Large|LARGE|huge|Huge)\s+([\s\S]*)$/);
             if (font_wrapper !== null) {
                 font = { mathrm: "normal", mathbf: "bold", mathit: "italic", mathsf: "sans" }[font_wrapper[1]];
                 content = font_wrapper[2];
                 unwrapped = true;
             } else if (size_wrapper !== null) {
-                size = size_wrapper[1] === "normalsize" ? "normal" : size_wrapper[1];
+                size = size_wrapper[1] === "normalsize" ? "normal"
+                    : (size_wrapper[1] === "scriptscriptstyle" ? "small" : size_wrapper[1]);
                 content = size_wrapper[2];
                 unwrapped = true;
             }
@@ -1007,7 +1008,10 @@ class UI {
         let { content } = this.parse_freeform_text_latex(label);
         const font_command = { normal: "mathrm", bold: "mathbf", italic: "mathit", sans: "mathsf" }[font];
         if (font_command !== "mathrm") content = `\\${font_command}{${content}}`;
-        if (size !== "normal") content = `\\${size} ${content}`;
+        // `\\small` is only marginally smaller in KaTeX. Use the compact script-script style
+        // so the Small control is visibly useful for labels and annotations.
+        const size_command = size === "small" ? "scriptscriptstyle" : size;
+        if (size_command !== "normal") content = `\\${size_command} ${content}`;
         return content;
     }
 
