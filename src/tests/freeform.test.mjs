@@ -182,12 +182,13 @@ test("persistent hand tool pans only until toggled off", () => {
     assert.match(css, /\.ui\.pan \.container:active[\s\S]*cursor: grabbing/);
 });
 
-test("compact toolbars reserve logo space and scroll instead of overlapping it", () => {
+test("compact toolbars scale without clipping dropdown menus", () => {
     const css = readFileSync(resolve("src/main.css"), "utf8");
-    assert.match(css, /a > \.logo[\s\S]*?width: 72px/);
-    assert.match(css, /@media \(max-width: 1280px\)[\s\S]*?\.toolbar[\s\S]*?left: 104px/);
-    assert.match(css, /@media \(max-width: 1280px\)[\s\S]*?overflow-x: auto/);
-    assert.match(css, /@media \(max-width: 480px\)[\s\S]*?#logo-link[\s\S]*?display: none/);
+    assert.match(css, /#logo-link[\s\S]*?right: 16px; bottom: 16px/);
+    assert.match(css, /a > \.logo[\s\S]*?width: 48px/);
+    assert.match(css, /@media \(max-width: 1280px\)[\s\S]*?transform: translateX\(-50%\) scale\(0\.9\)/);
+    assert.match(css, /@media \(max-width: 1280px\)[\s\S]*?overflow: visible/);
+    assert.match(css, /@media \(max-width: 1120px\)[\s\S]*?#logo-link[\s\S]*?display: none/);
 });
 
 test("new arrows default to a flexible 5–95 length range", () => {
