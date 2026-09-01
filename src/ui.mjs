@@ -1606,6 +1606,7 @@ class UI {
                 frame: {
                     background: style?.backgroundColor || "transparent",
                     border: style?.borderColor || "none",
+                    border_width: parseFloat(style?.borderTopWidth || "0") || 0,
                     radius: parseFloat(style?.borderRadius || "0") || 0,
                 },
             };
@@ -1633,12 +1634,12 @@ class UI {
     }
 
     export_freeform_svg() {
-        download_svg(this.freeform_scene(true), this.freeform_export_filename());
+        download_svg(this.freeform_scene(), this.freeform_export_filename());
     }
 
     async export_freeform_png(scale = 2) {
         try {
-            await download_png(this.freeform_scene(true), this.freeform_export_filename(), { scale });
+            await download_png(this.freeform_scene(), this.freeform_export_filename(), { scale });
         } catch (error) {
             UI.display_error(`PNG export failed: ${error.message}`);
         }

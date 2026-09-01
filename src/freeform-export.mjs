@@ -100,9 +100,15 @@ export const freeform_svg = (scene, { padding = 24, background = null } = {}) =>
             : node.symbol === "square"
                 ? `<rect x="${number(centre.x - size / 2)}" y="${number(centre.y - size / 2)}" width="${size}" height="${size}" fill="${node.colour || "#111"}"/>`
                 : `<circle cx="${number(centre.x)}" cy="${number(centre.y)}" r="${number(size / 2)}" fill="${node.colour || "#111"}"/>`;
-        return `<g class="qv-node"><rect x="${number(node.bounds.x)}" y="${number(node.bounds.y)}" width="${number(node.bounds.width)}" height="${number(node.bounds.height)}" rx="${number(frame.radius || 14)}" fill="${frame.background || "transparent"}" stroke="${frame.border || "none"}"/>${symbol}<foreignObject x="${number(node.bounds.x)}" y="${number(node.bounds.y)}" width="${number(node.bounds.width)}" height="${number(node.bounds.height)}"><div xmlns="http://www.w3.org/1999/xhtml" class="qv-node-label" style="color:${node.colour || "#111"};font-size:${number(node.font_size || 26)}px">${label}</div></foreignObject></g>`;
+        // `borderColor` resolves to the current text colour even when the editor hit-area has no
+        // border.  Only serialise a frame when it has a visible border width.
+        const frame_stroke = Number(frame.border_width || 0) > 0 ? frame.border : "none";
+        return `<g class="qv-node"><rect x="${number(node.bounds.x)}" y="${number(node.bounds.y)}" width="${number(node.bounds.width)}" height="${number(node.bounds.height)}" rx="${number(frame.radius || 14)}" fill="${frame.background || "transparent"}" stroke="${frame_stroke || "none"}"/>${symbol}<foreignObject x="${number(node.bounds.x)}" y="${number(node.bounds.y)}" width="${number(node.bounds.width)}" height="${number(node.bounds.height)}"><div xmlns="http://www.w3.org/1999/xhtml" class="qv-node-label" style="color:${node.colour || "#111"};font-size:${number(node.font_size || 26)}px">${label}</div></foreignObject></g>`;
     }).join("");
-    return `<?xml version="1.0" encoding="UTF-8"?>\n<svg xmlns="http://www.w3.org/2000/svg" width="${number(bounds.width)}" height="${number(bounds.height)}" viewBox="${number(bounds.x)} ${number(bounds.y)} ${number(bounds.width)} ${number(bounds.height)}"><defs><marker id="qv-arrowhead" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="context-stroke"/></marker><style>.qv-node-label,.qv-edge-label{display:flex;width:100%;height:100%;align-items:center;justify-content:center;text-align:center;overflow:visible;font:20px KaTeX_Main,serif}.qv-edge-label{font-size:16px;background:transparent}.katex{white-space:nowrap}${scene.styles || ""}</style></defs>${background ? `<rect x="${number(bounds.x)}" y="${number(bounds.y)}" width="${number(bounds.width)}" height="${number(bounds.height)}" fill="${xml(background)}"/>` : ""}${box_svg}${arrows}${node_svg}</svg>`;
+    // Export only the styles owned by the format.  Copying `document.styleSheets` includes
+    // browser-extension CSS and relative font URLs, which makes the blob SVG unreliable when a
+    // canvas tries to rasterise it as a PNG.
+    return `<?xml version="1.0" encoding="UTF-8"?>\n<svg xmlns="http://www.w3.org/2000/svg" width="${number(bounds.width)}" height="${number(bounds.height)}" viewBox="${number(bounds.x)} ${number(bounds.y)} ${number(bounds.width)} ${number(bounds.height)}"><defs><marker id="qv-arrowhead" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="context-stroke"/></marker><style>.qv-node-label,.qv-edge-label{display:flex;width:100%;height:100%;align-items:center;justify-content:center;text-align:center;overflow:visible;font:20px KaTeX_Main,serif}.qv-edge-label{font-size:16px;background:transparent}.katex{white-space:nowrap}</style></defs>${background ? `<rect x="${number(bounds.x)}" y="${number(bounds.y)}" width="${number(bounds.width)}" height="${number(bounds.height)}" fill="${xml(background)}"/>` : ""}${box_svg}${arrows}${node_svg}</svg>`;
 };
 
 const tikz_colour = (colour, fallback = "black") => /^#[0-9a-f]{6}$/i.test(colour || "") ? colour : fallback;
@@ -208,7 +214,7 @@ export const download_svg = (scene, filename, options = {}) => {
     anchor.href = url;
     anchor.download = `${filename}.svg`;
     anchor.click();
-    URL.revokeObjectURL(url);
+    setTimeout(() => URL.revokeObjectURL(url), 0);
 };
 
 export const download_png = async (scene, filename, { scale = 2, ...options } = {}) => {
@@ -221,7 +227,9 @@ export const download_png = async (scene, filename, { scale = 2, ...options } = 
         const canvas = document.createElement("canvas");
         canvas.width = Math.ceil(bounds.width * scale);
         canvas.height = Math.ceil(bounds.height * scale);
-        canvas.getContext("2d").drawImage(image, 0, 0, canvas.width, canvas.height);
+        const context = canvas.getContext("2d");
+        if (context === null) throw new Error("The browser could not create a PNG canvas.");
+        context.drawImage(image, 0, 0, canvas.width, canvas.height);
         const blob = await new Promise((resolve) => canvas.toBlob(resolve, "image/png"));
         if (!blob) throw new Error("The browser could not rasterize the SVG.");
         const png_url = URL.createObjectURL(blob);
@@ -229,7 +237,7 @@ export const download_png = async (scene, filename, { scale = 2, ...options } = 
         anchor.href = png_url;
         anchor.download = `${filename}.png`;
         anchor.click();
-        URL.revokeObjectURL(png_url);
+        setTimeout(() => URL.revokeObjectURL(png_url), 0);
     } finally {
         URL.revokeObjectURL(url);
     }

@@ -30,6 +30,21 @@ test("SVG includes semantic content but never the editor grid", () => {
     assert.doesNotMatch(svg, /focus-point|static-grid|grid/);
 });
 
+test("SVG omits invisible editor frames and unrelated document styles", () => {
+    const svg = freeform_svg({
+        nodes: [{
+            id: "node",
+            bounds: { x: 0, y: 0, width: 32, height: 32 },
+            symbol: "bullet",
+            symbol_size: 18,
+            frame: { background: "transparent", border: "rgb(0, 0, 0)", border_width: 0 },
+        }],
+        styles: "@font-face{src:url(fonts/KaTeX_Main.woff2)}.injected{outline:99px solid red}",
+    });
+    assert.match(svg, /stroke="none"/);
+    assert.doesNotMatch(svg, /KaTeX_Main\.woff2|injected|outline:99px/);
+});
+
 test("overflowing labels, external nodes, and arrow styles remain scene content", () => {
     const styles = ["cell", "dashed", "dotted", "squiggly", "barred", "double barred", "bullet solid", "bullet hollow"];
     const fixture = {
