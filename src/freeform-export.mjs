@@ -213,6 +213,10 @@ export const freeform_tikz = (scene, { source_url = "" } = {}) => {
         lines.push(`  \\freeformquivernode{${node.name}}{${number(centre.x)}}{${number(centre.y)}}{${number(node.bounds.width)}}{${number(node.bounds.height)}}{${node.label || ""}}`);
     }
     for (const edge of scene.edges || []) {
+        if (edge.free && edge.source_point && edge.target_point) {
+            lines.push(`  \\freeformquiverarrow{${number(edge.source_point.x)}}{${number(edge.source_point.y)}}{${number(edge.target_point.x)}}{${number(edge.target_point.y)}}`);
+            continue;
+        }
         const source = nodes.get(edge.source);
         const target = nodes.get(edge.target);
         if (!source || !target) continue;

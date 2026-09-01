@@ -27,3 +27,8 @@
   \node[anchor=north west, font=\bfseries, inner sep=3pt] at (#1,#2) {#5};%
   \draw[qv #6] (#1,{#2+40}) -- ++(#3,0);%
 }
+
+%% #1/#2 source and #3/#4 target canvas coordinates for a node-independent arrow.
+\newcommand{\freeformquiverarrow}[4]{%
+  \draw[qv arrow, ->] (#1,#2) -- (#3,#4);%
+}

@@ -176,6 +176,15 @@ test("freeform arrow choices use a readable vertical submenu", () => {
     assert.match(css, /\.subtoolbar\.arrow-menu \.action \.name \{[\s\S]*?position: static/);
 });
 
+test("the LaTeX importer detects this fork's freeform TikZ vocabulary", () => {
+    const quiver = readFileSync(resolve("src/quiver.mjs"), "utf8");
+    assert.match(quiver, /freeformquiver\(\?:node\|box\|arrow\)/);
+    assert.match(quiver, /QuiverImportExport\.freeform_tikz/);
+    assert.match(quiver, /freeformquivernode/);
+    assert.match(quiver, /freeformquiverbox/);
+    assert.match(quiver, /freeformquiverarrow/);
+});
+
 test("persistent hand tool pans only until toggled off", () => {
     const ui = readFileSync(resolve("src/ui.mjs"), "utf8");
     const css = readFileSync(resolve("src/main.css"), "utf8");

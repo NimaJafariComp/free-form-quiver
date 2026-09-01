@@ -1,6 +1,7 @@
 import { delay } from "./dom.mjs";
 import { Colour, Encodable, Point, Position, mod } from "./ds.mjs";
 import { CONSTANTS } from "./arrow.mjs";
+import { RectangularBox } from "./freeform.mjs";
 import { Parser } from "./parser.mjs";
 import { freeform_tikz } from "./freeform-export.mjs";
 import { Edge, Vertex } from "./ui.mjs";
@@ -256,6 +257,10 @@ export class Quiver {
     import(ui, format, data, settings) {
         switch (format) {
             case "tikz-cd":
+                if (/\\begin\{tikzpicture\}/.test(data)
+                    && /\\freeformquiver(?:node|box|arrow)/.test(data)) {
+                    return QuiverImportExport.freeform_tikz.import(ui, data, settings);
+                }
                 return QuiverImportExport.tikz_cd.import(ui, data, settings);
             default:
                 throw new Error(`unknown export format \`${format}\``);
@@ -1017,6 +1022,82 @@ QuiverImportExport.tikz_cd = new class extends QuiverImportExport {
         this.end_import(ui, ui.quiver.all_cells());
 
         return { diagnostics: parser.diagnostics };
+    }
+};
+
+// Freeform exports use a small, constrained TikZ vocabulary. Parsing it directly retains absolute
+// coordinates instead of coercing them into tikz-cd's grid.
+const freeform_commands = (source, name) => {
+    const commands = [];
+    let cursor = 0;
+    const marker = `\\${name}`;
+    while ((cursor = source.indexOf(marker, cursor)) !== -1) {
+        let index = cursor + marker.length;
+        const arguments_ = [];
+        while (source[index] === "{") {
+            let depth = 0;
+            const start = ++index;
+            while (index < source.length) {
+                const character = source[index++];
+                if (character === "{" && source[index - 2] !== "\\") ++depth;
+                if (character === "}" && source[index - 2] !== "\\" && depth-- === 0) break;
+            }
+            if (depth !== -1) break;
+            arguments_.push(source.slice(start, index - 1));
+        }
+        if (arguments_.length > 0) commands.push(arguments_);
+        cursor = Math.max(index, cursor + marker.length);
+    }
+    return commands;
+};
+
+QuiverImportExport.freeform_tikz = new class extends QuiverImportExport {
+    import(ui, data) {
+        const diagnostics = [];
+        if (!/\\begin\{tikzpicture\}/.test(data) || !/\\end\{tikzpicture\}/.test(data)) {
+            return { diagnostics: [new Parser.Error("Freeform diagrams must be wrapped in \\begin{tikzpicture}.", null)] };
+        }
+        this.begin_import(ui);
+        const vertices = new Map();
+        let position = 0;
+        for (const args of freeform_commands(data, "freeformquivernode")) {
+            if (args.length !== 6 || args.slice(1, 5).some((value) => !Number.isFinite(Number(value)))) {
+                diagnostics.push(new Parser.Warning("Skipped a malformed freeform node.", null));
+                continue;
+            }
+            const [name, x, y, width, height, label] = args;
+            const vertex = new Vertex(ui, label, new Position(position++, 0));
+            ui.quiver.add(vertex);
+            ui.set_freeform_bounds(vertex, { x: Number(x) - Number(width) / 2, y: Number(y) - Number(height) / 2, width: Number(width), height: Number(height) });
+            vertices.set(name, vertex);
+        }
+        ui.quiver.flush(ui.present);
+        for (const args of freeform_commands(data, "freeformquiverbox")) {
+            if (args.length !== 6 || args.slice(0, 4).some((value) => !Number.isFinite(Number(value)))) {
+                diagnostics.push(new Parser.Warning("Skipped a malformed freeform box.", null));
+                continue;
+            }
+            const [x, y, width, height, title, kind] = args;
+            const box = new RectangularBox({ id: `imported-box-${ui.box_store.boxes.size + 1}`, title, kind, bounds: { x: Number(x), y: Number(y), width: Number(width), height: Number(height) } });
+            ui.box_store.add(box);
+            ui.render_rectangular_box(box);
+        }
+        for (const args of freeform_commands(data, "freeformquiverarrow")) {
+            if (args.length !== 4 || args.some((value) => !Number.isFinite(Number(value)))) {
+                diagnostics.push(new Parser.Warning("Skipped a malformed freeform arrow.", null));
+                continue;
+            }
+            ui.add_free_arrow({ x: Number(args[0]), y: Number(args[1]) }, { x: Number(args[2]), y: Number(args[3]) });
+        }
+        const edge_pattern = /\\draw\s*\[[^\]]*\]\s*\(([^)]+)\)\s*(?:--|to(?:\[[^\]]*\])?)\s*(?:node\[[^\]]*\]\s*\{[^}]*\}\s*)?\(([^)]+)\)\s*;/g;
+        for (const match of data.matchAll(edge_pattern)) {
+            const source = vertices.get(match[1]);
+            const target = vertices.get(match[2]);
+            if (source && target) new Edge(ui, "", source, target, {});
+        }
+        ui.quiver.flush(ui.present);
+        this.end_import(ui, ui.quiver.all_cells());
+        return { diagnostics };
     }
 };
 

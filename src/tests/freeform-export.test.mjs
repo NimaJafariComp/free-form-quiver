@@ -66,6 +66,13 @@ test("SVG includes node-independent free arrows", () => {
     }] }), { x: -12, y: -4, width: 132, height: 72 });
 });
 
+test("TikZ preserves node-independent free arrows for re-import", () => {
+    const tikz = freeform_tikz({ nodes: [], boxes: [], edges: [{
+        free: true, source_point: { x: 12, y: 20 }, target_point: { x: 96, y: 44 },
+    }] }).data;
+    assert.match(tikz, /\\freeformquiverarrow\{12\}\{20\}\{96\}\{44\}/);
+});
+
 test("overflowing labels, external nodes, and arrow styles remain scene content", () => {
     const styles = ["cell", "dashed", "dotted", "squiggly", "barred", "double barred", "bullet solid", "bullet hollow"];
     const fixture = {
