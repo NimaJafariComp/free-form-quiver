@@ -29,6 +29,14 @@ export const freeform_content_bounds = (scene, padding = 24) => {
     for (const box of scene.boxes || []) bounds.push(box.bounds);
     for (const edge of scene.edges || []) {
         if (edge.bounds) bounds.push(edge.bounds);
+        if (edge.free && edge.source_point && edge.target_point) {
+            bounds.push({
+                x: Math.min(edge.source_point.x, edge.target_point.x),
+                y: Math.min(edge.source_point.y, edge.target_point.y),
+                width: Math.abs(edge.target_point.x - edge.source_point.x),
+                height: Math.abs(edge.target_point.y - edge.source_point.y),
+            });
+        }
     }
     if (bounds.length === 0) return { x: 0, y: 0, width: padding * 2, height: padding * 2 };
     const min_x = Math.min(...bounds.map((bound) => bound.x));
@@ -80,6 +88,12 @@ export const freeform_svg = (scene, { padding = 24, background = null, rasterize
         return `<g class="qv-box qv-${xml(box.kind || "problem-bank")}"><rect x="${number(box.bounds.x)}" y="${number(box.bounds.y)}" width="${number(box.bounds.width)}" height="${number(box.bounds.height)}" rx="10" fill="white" fill-opacity="0.93" stroke="${colour}" stroke-width="2"/><path d="M ${number(box.bounds.x)} ${number(box.bounds.y + 40)} H ${number(box.bounds.x + box.bounds.width)}" stroke="${colour}" stroke-width="1.5"/><text x="${number(box.bounds.x + 16)}" y="${number(box.bounds.y + 27)}" fill="${colour}" font-family="system-ui, sans-serif" font-size="18" font-weight="700">${xml(box.title || "Untitled box")}</text></g>`;
     }).join("");
     const arrows = (scene.edges || []).map((edge) => {
+        if (edge.free) {
+            const source = edge.source_point;
+            const target = edge.target_point;
+            if (!source || !target) return "";
+            return `<g class="qv-edge qv-free-edge"><path d="M ${number(source.x)} ${number(source.y)} L ${number(target.x)} ${number(target.y)}" fill="none" stroke="${edge.colour || "#111"}" stroke-width="1"${arrow_marker(edge)}/></g>`;
+        }
         const source = nodes.get(edge.source);
         const target = nodes.get(edge.target);
         const label_x = source && target ? (endpoint(source).x + endpoint(target).x) / 2 : 0;

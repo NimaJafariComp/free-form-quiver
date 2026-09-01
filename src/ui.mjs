@@ -697,6 +697,12 @@ class UI {
         // then target. It never infers an endpoint from current layout order.
         this.arrow_placement_active = false;
         this.arrow_placement_source = null;
+        // Free arrows are independent canvas primitives with draggable endpoints.
+        this.free_arrows = new Map();
+        this.next_free_arrow_id = 1;
+        this.free_arrow_placement_active = false;
+        this.free_arrow_drag = null;
+        this.selected_free_arrow_id = null;
         // The constraints on the width and height of each cell: we use the maximum constraint for
         // final width/height. We store these separately from `cell_width` and `cell_height` to
         // avoid recomputing the sizes every time, as we access them frequently.
@@ -1019,6 +1025,103 @@ class UI {
             this.element.class_list.add("placing-arrow");
             this.toolbar.update(this);
         }
+    }
+
+    toggle_free_arrow_placement() {
+        if (!this.is_freeform()) return;
+        this.cancel_freeform_arrow_placement();
+        this.free_arrow_placement_active = !this.free_arrow_placement_active;
+        this.element.class_list.toggle("placing-free-arrow", this.free_arrow_placement_active);
+        this.toolbar.update(this);
+    }
+
+    deselect_free_arrow() {
+        if (this.selected_free_arrow_id !== null) {
+            this.free_arrows.get(this.selected_free_arrow_id)?.element.classList.remove("selected");
+            this.selected_free_arrow_id = null;
+        }
+    }
+
+    select_free_arrow(arrow) {
+        this.deselect();
+        this.deselect_free_arrow();
+        this.selected_free_arrow_id = arrow.id;
+        arrow.element.classList.add("selected");
+    }
+
+    render_free_arrow(arrow) {
+        const { source, target } = arrow;
+        const dx = target.x - source.x;
+        const dy = target.y - source.y;
+        const length = Math.hypot(dx, dy) || 1;
+        const unit = { x: dx / length, y: dy / length };
+        const normal = { x: -unit.y, y: unit.x };
+        const base = { x: target.x - unit.x * 12, y: target.y - unit.y * 12 };
+        arrow.line.setAttribute("x1", source.x);
+        arrow.line.setAttribute("y1", source.y);
+        arrow.line.setAttribute("x2", target.x);
+        arrow.line.setAttribute("y2", target.y);
+        arrow.head.setAttribute("d", `M ${target.x} ${target.y} L ${base.x + normal.x * 5} ${base.y + normal.y * 5} L ${base.x - normal.x * 5} ${base.y - normal.y * 5} Z`);
+        for (const [name, handle] of Object.entries(arrow.handles)) {
+            handle.setAttribute("cx", arrow[name].x);
+            handle.setAttribute("cy", arrow[name].y);
+        }
+    }
+
+    add_free_arrow(source, target = { x: source.x + 80, y: source.y }, id = null) {
+        const arrow_id = id || `free-arrow-${this.next_free_arrow_id++}`;
+        const restored_number = /^free-arrow-(\d+)$/.exec(arrow_id);
+        if (restored_number !== null) {
+            this.next_free_arrow_id = Math.max(this.next_free_arrow_id, Number(restored_number[1]) + 1);
+        }
+        const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+        svg.classList.add("freeform-free-arrow");
+        const line = document.createElementNS(svg.namespaceURI, "line");
+        const head = document.createElementNS(svg.namespaceURI, "path");
+        const make_handle = (endpoint) => {
+            const handle = document.createElementNS(svg.namespaceURI, "circle");
+            handle.classList.add("free-arrow-handle");
+            handle.dataset.endpoint = endpoint;
+            handle.setAttribute("r", "7");
+            handle.addEventListener(pointer_event("down"), (event) => {
+                if (event.button !== 0) return;
+                event.preventDefault();
+                event.stopPropagation();
+                this.select_free_arrow(arrow);
+                this.free_arrow_drag = { arrow, endpoint };
+                handle.setPointerCapture?.(event.pointerId);
+            });
+            return handle;
+        };
+        line.classList.add("free-arrow-line");
+        head.classList.add("free-arrow-head");
+        svg.append(line, head);
+        const arrow = { id: arrow_id, source: { ...source }, target: { ...target }, element: svg, line, head, handles: {} };
+        arrow.handles.source = make_handle("source");
+        arrow.handles.target = make_handle("target");
+        svg.append(arrow.handles.source, arrow.handles.target);
+        svg.addEventListener(pointer_event("down"), (event) => {
+            if (event.button === 0) {
+                event.stopPropagation();
+                this.select_free_arrow(arrow);
+            }
+        });
+        this.canvas.element.append(svg);
+        this.free_arrows.set(arrow_id, arrow);
+        this.render_free_arrow(arrow);
+        this.select_free_arrow(arrow);
+        return arrow;
+    }
+
+    place_free_arrow_if_armed(event) {
+        if (!this.free_arrow_placement_active) return false;
+        event.preventDefault();
+        event.stopPropagation();
+        this.add_free_arrow(this.offset_from_event(event));
+        this.free_arrow_placement_active = false;
+        this.element.classList.remove("placing-free-arrow");
+        this.toolbar.update(this);
+        return true;
     }
 
     /// Cancel an explicit freeform arrow gesture without creating an edge.
@@ -1451,9 +1554,10 @@ class UI {
             };
         }
         const bytes = new TextEncoder().encode(JSON.stringify({
-            version: 3,
+            version: 4,
             items,
             boxes: this.box_store.serialize(),
+            free_arrows: Array.from(this.free_arrows.values()).map(({ id, source, target }) => ({ id, source, target })),
         }));
         // Base64url has no `=` padding, so it remains stable in the fragment
         // identifier even in URLs handled by older Quiver tooling.
@@ -1469,7 +1573,7 @@ class UI {
             const padded = base64.padEnd(base64.length + (4 - base64.length % 4) % 4, "=");
             const bytes = Uint8Array.from(atob(padded), (character) => character.charCodeAt(0));
             const data = JSON.parse(new TextDecoder().decode(bytes));
-            if (![1, 2, 3].includes(data.version) || typeof data.items !== "object") {
+            if (![1, 2, 3, 4].includes(data.version) || typeof data.items !== "object") {
                 throw new Error("invalid freeform layout payload");
             }
             for (const [code, item] of Object.entries(data.items)) {
@@ -1491,6 +1595,11 @@ class UI {
                 const box = new RectangularBox(box_data);
                 this.box_store.add(box);
                 this.render_rectangular_box(box);
+            }
+            for (const free_arrow of data.free_arrows || []) {
+                if (free_arrow.source && free_arrow.target) {
+                    this.add_free_arrow(free_arrow.source, free_arrow.target, free_arrow.id);
+                }
             }
         } catch (_) {
             UI.display_error("The freeform layout could not be loaded.");
@@ -1526,6 +1635,9 @@ class UI {
         this.freeform_layout = new FreeformLayout({ snap: 16 });
         this.box_store = new BoxStore();
         this.box_elements = new Map();
+        for (const arrow of this.free_arrows.values()) arrow.element.remove();
+        this.free_arrows = new Map();
+        this.selected_free_arrow_id = null;
         this.selected_box_id = null;
         this.update_grid();
 
@@ -1622,7 +1734,10 @@ class UI {
             options: JSON.parse(JSON.stringify(edge.options)),
             colour: colour(edge.options.colour),
             level: edge.level,
-        }));
+        })).concat(Array.from(this.free_arrows.values()).map((arrow) => ({
+            free: true, source_point: arrow.source, target_point: arrow.target,
+            options: { style: { head: { name: "arrowhead" } } }, colour: "#111", level: 1,
+        })));
         const styles = include_styles ? Array.from(document.styleSheets).flatMap((sheet) => {
             try { return Array.from(sheet.cssRules).map((rule) => rule.cssText); } catch (_) { return []; }
         }).join("\n") : "";
@@ -2203,6 +2318,12 @@ class UI {
         };
 
         document.addEventListener(pointer_event("move"), (event) => {
+            if (this.free_arrow_drag !== null) {
+                const { arrow, endpoint } = this.free_arrow_drag;
+                arrow[endpoint] = this.offset_from_event(event);
+                this.render_free_arrow(arrow);
+                return;
+            }
             if (this.in_mode(UIMode.Pan)) {
                 if (this.mode.key !== null) {
                     // If we're panning, but no longer holding the requisite key, stop.
@@ -2330,6 +2451,10 @@ class UI {
         });
 
         document.addEventListener(pointer_event("up"), (event) => {
+            if (event.button === 0 && this.free_arrow_drag !== null) {
+                this.free_arrow_drag = null;
+                return;
+            }
             if (event.target instanceof Element
                 && event.target.closest(".label-input-container") !== null) {
                 return;
@@ -2422,12 +2547,15 @@ class UI {
                         this.switch_mode(new UIMode.Pan("Alt"));
                     } else if (event.ctrlKey) {
                         this.switch_mode(new UIMode.Pan("Control"));
+                    } else if (this.place_free_arrow_if_armed(event)) {
+                        return;
                     } else if (this.place_freeform_node_if_armed(event)) {
                         return;
                     } else if (this.is_freeform()) {
                         // Freeform editing has no grid focus point. Empty clicks
                         // only clear selection unless the Add node tool is armed.
                         this.dismiss_pane();
+                        this.deselect_free_arrow();
                     } else {
                         this.dismiss_pane();
 
@@ -8269,12 +8397,9 @@ class Toolbar {
             () => ui.set_selected_freeform_vertex_symbol("circle"),
         );
 
-        add_action(
-            "Add arrow",
-            "add-arrow",
-            [],
-            () => ui.add_arrow_from_selection(),
-        );
+        const arrows = add_subtoolbar("Add arrow", "add-arrow");
+        add_action("Connected arrow", "add-arrow", [], () => ui.add_arrow_from_selection(), arrows);
+        add_action("Free arrow", "add-arrow", [], () => ui.toggle_free_arrow_placement(), arrows);
 
         add_action(
             "Drag",

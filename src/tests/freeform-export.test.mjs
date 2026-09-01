@@ -54,6 +54,18 @@ test("raster SVG avoids foreign objects that taint canvas exports", () => {
     assert.match(svg, />A<|>f</);
 });
 
+test("SVG includes node-independent free arrows", () => {
+    const svg = freeform_svg({
+        nodes: [],
+        edges: [{ free: true, source_point: { x: 12, y: 20 }, target_point: { x: 96, y: 44 } }],
+    });
+    assert.match(svg, /qv-free-edge/);
+    assert.match(svg, /M 12 20 L 96 44/);
+    assert.deepEqual(freeform_content_bounds({ nodes: [], edges: [{
+        free: true, source_point: { x: 12, y: 20 }, target_point: { x: 96, y: 44 },
+    }] }), { x: -12, y: -4, width: 132, height: 72 });
+});
+
 test("overflowing labels, external nodes, and arrow styles remain scene content", () => {
     const styles = ["cell", "dashed", "dotted", "squiggly", "barred", "double barred", "bullet solid", "bullet hollow"];
     const fixture = {

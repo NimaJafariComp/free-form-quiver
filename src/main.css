@@ -525,6 +525,13 @@ kbd {
     box-shadow: 0 0 0 3px var(--ui-blue);
 }
 
+.ui.freeform.placing-free-arrow .canvas { cursor: crosshair; }
+.freeform-free-arrow { position: absolute; left: 0; top: 0; width: 1px; height: 1px; overflow: visible; z-index: 1; pointer-events: none; }
+.free-arrow-line { stroke: var(--cell-colour); stroke-width: 2; pointer-events: stroke; }
+.free-arrow-head { fill: var(--cell-colour); pointer-events: none; }
+.free-arrow-handle { display: none; fill: var(--ui-canvas); stroke: var(--ui-blue); stroke-width: 2; pointer-events: all; cursor: grab; }
+.freeform-free-arrow.selected .free-arrow-handle { display: block; }
+
 /* Freeform rectangular containers. They sit behind Quiver cells and make
    reusable problem definitions legible without becoming connectable nodes. */
 .diagram-box {
