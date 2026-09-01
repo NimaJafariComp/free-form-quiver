@@ -1,14 +1,14 @@
-# quiver: a modern commutative diagram editor
+# Free Form Quiver
 
-[![quiver](screenshots/title.png "quiver: a modern commutative diagram editor")](https://q.uiver.app)
+[![Free Form Quiver](screenshots/title.png "Free Form Quiver")](https://github.com/NimaJafariComp/free-form-quiver)
 
-**quiver** is a modern, graphical editor for [commutative] and [pasting diagrams], capable of
-rendering high-quality diagrams for screen viewing, and exporting to [LaTeX] via [tikz-cd] or
-[Typst] via [fletcher].
+**Free Form Quiver** is a graphical editor for commutative diagrams, wiring diagrams, and
+annotated figures. It is a fork of [Quiver](https://github.com/varkor/quiver) that replaces its
+grid-first layout with an independent, free-positioned canvas.
 
-Creating and modifying diagrams with **quiver** is orders of magnitude faster than writing the
-equivalent LaTeX or Typst by hand and, with a little experience, competes with pen-and-paper. To
-learn how to use **quiver** efficiently, see the [tutorial](tutorial.md).
+Place nodes, text, arrows, and boxes wherever they belong; moving or resizing one item never
+reflows another. Diagrams can be saved in their share URL, reloaded without losing freeform
+geometry or styling, and exported as SVG, PNG, or absolute-coordinate TikZ.
 
 [commutative]: https://en.wikipedia.org/wiki/Commutative_diagram
 [pasting diagrams]: https://ncatlab.org/nlab/show/pasting+diagram
@@ -17,18 +17,42 @@ learn how to use **quiver** efficiently, see the [tutorial](tutorial.md).
 [Typst]: https://typst.app/
 [fletcher]: https://typst.app/universe/package/fletcher/
 
-Try **quiver** out: [q.uiver.app](https://q.uiver.app)
+## What is different from Quiver?
 
-## Freeform wiring-diagram mode
+- **Freeform canvas.** Nodes have independent positions and can overlap when appropriate.
+- **Free arrows.** Add arrows with two draggable invisible endpoints, without creating visible
+  nodes. They use the same style, label, and arrowhead controls as connected arrows.
+- **Standalone text.** Add editable LaTeX text anywhere on the canvas, with font and size controls.
+- **Diagram boxes.** Add and resize definition or problem-bank containers without changing their
+  contents' layout.
+- **Reliable persistence.** Save and reload freeform diagrams while preserving item positions,
+  arrow geometry, labels, styles, and text formatting.
+- **Figure-ready export.** Export clean SVG or PNG images, or TikZ that Free Form Quiver can import
+  again. For compiling freeform TikZ, use the companion
+  [`freeform-quiver` package](package/README.md).
 
-Diagrams use an independent, freeform canvas: moving or resizing one object no longer changes
-the placement of any other object. Imported shared links are opened as freeform diagrams. The **Boxes**
-toolbar menu adds draggable, resizable rectangular **definition** and **problem bank** containers;
-their titles can be edited directly. This is intended for semantic wiring diagrams while preserving
-Quiver's existing vertices, arrows, labels, and exports.
+## Getting started
 
-For tips on using **quiver** (including how to create and modify diagrams entirely using the
-keyboard), see the [**quiver** tutorial](tutorial.md).
+Run the editor locally:
+
+```sh
+git clone https://github.com/NimaJafariComp/free-form-quiver.git
+cd free-form-quiver
+make
+make serve
+```
+
+Then open [http://localhost:8000](http://localhost:8000). Use the toolbar to add nodes, connected
+arrows, free arrows, standalone text, and boxes. Save to update the shareable diagram URL.
+
+Run the checks with:
+
+```sh
+make test
+```
+
+For the original Quiver keyboard workflow and conventional commutative-diagram features, see the
+[upstream tutorial](https://github.com/varkor/quiver/blob/master/tutorial.md).
 
 ## Features & screenshots
 
@@ -45,7 +69,8 @@ and higher cells.
 
 [![3-cell](screenshots/3-cell.png "3-cell")](https://q.uiver.app/?q=WzAsNCxbMCwwLCJYJyJdLFsxLDAsIlgiXSxbNCwwLCJZIl0sWzUsMCwiWSciXSxbMCwxLCJ4Il0sWzIsMywieSIsMl0sWzEsMiwiIiwwLHsiY3VydmUiOi0yfV0sWzEsMiwiIiwyLHsiY3VydmUiOjJ9XSxbMCwzLCJmJyIsMCx7ImN1cnZlIjotNX1dLFswLDMsImcnIiwyLHsiY3VydmUiOjV9XSxbOCw2LCJcXHZhcnBoaSIsMix7Imxlbmd0aCI6NzB9XSxbNyw5LCJcXGdhbW1hIiwwLHsibGVuZ3RoIjo3MH1dLFs2LDcsIlxcY2hpIiwyLHsib2Zmc2V0Ijo1LCJsZW5ndGgiOjcwfV0sWzYsNywiXFx1cHNpbG9uIiwwLHsib2Zmc2V0IjotNSwibGVuZ3RoIjo3MH1dLFsxMiwxMywiXFxtdSIsMCx7Imxlbmd0aCI6NzB9XV0=)
 
-Object placement is based on a flexible grid that resizes according to the size of the labels.
+Free Form Quiver keeps each object's position independent, so labels and nearby objects do not
+force the rest of the diagram to move.
 
 [![Flexible grid](screenshots/flexible-grid.png "Flexible grid")](https://q.uiver.app/?q=WzAsMyxbMCwwLCIoQSBcXG90aW1lcyBJKSBcXG90aW1lcyBCIl0sWzIsMCwiQSBcXG90aW1lcyAoSSBcXG90aW1lcyBCKSJdLFsxLDEsIkEgXFxvdGltZXMgQiJdLFswLDIsIlxccmhvX0EgXFxvdGltZXMgQiIsMl0sWzEsMiwiQSBcXG90aW1lcyBcXGxhbWJkYV9CIl0sWzAsMSwiXFxhbHBoYV97QSwgSSwgQn0iXV0=)
 
@@ -59,8 +84,8 @@ And full use of colour for labels and arrows.
 
 [![Screenshot mode](screenshots/grid-hidden.png "Screenshot mode")](https://q.uiver.app/?q=WzAsOCxbMCwwLCJHeCJdLFsxLDAsIkZ4Il0sWzIsMCwiR3giXSxbMywwLCJGeCJdLFswLDEsIkd5Il0sWzEsMSwiRnkiXSxbMiwxLCJHeSJdLFszLDEsIkZ5Il0sWzAsMSwiXFxiZXRhX3giXSxbMSwyLCJcXGFscGhhX3giXSxbMiwzLCJcXGJldGFfeCJdLFswLDQsIkdmIiwyXSxbNCw1LCJcXGJldGFfeSIsMl0sWzUsNiwiXFxhbHBoYV95IiwyXSxbNiw3LCJcXGJldGFfeSIsMl0sWzMsNywiRmYiXSxbMSw1LCJGZiIsMV0sWzIsNiwiR2YiLDFdLFs0LDEsIlxcYmV0YV9mIiwwLHsic2hvcnRlbiI6eyJzb3VyY2UiOjIwLCJ0YXJnZXQiOjIwfSwibGV2ZWwiOjJ9XSxbNSwyLCJcXGFscGhhX2YiLDAseyJzaG9ydGVuIjp7InNvdXJjZSI6MjAsInRhcmdldCI6MjB9LCJsZXZlbCI6Mn1dLFs2LDMsIlxcYmV0YSdmIiwwLHsic2hvcnRlbiI6eyJzb3VyY2UiOjIwLCJ0YXJnZXQiOjIwfSwibGV2ZWwiOjJ9XSxbMCwyLCIxIiwwLHsiY3VydmUiOi00fV0sWzUsNywiMSIsMix7ImN1cnZlIjo0fV0sWzEsMjEsIlxcdmFyZXBzaWxvbl94IiwwLHsic2hvcnRlbiI6eyJ0YXJnZXQiOjMwfX1dLFsyMiw2LCJcXGV0YV95IiwyLHsic2hvcnRlbiI6eyJzb3VyY2UiOjMwfX1dXQ==)
 
-**quiver** is intended to look good for screenshots, as well as to export LaTeX and Typst that looks
-as close as possible to the original diagram.
+Free Form Quiver is intended to look good for screenshots and production figures, with SVG and PNG
+exports that reflect the freeform canvas.
 
 [![Keyboard hints](screenshots/hints.png "Keyboard hints")](https://q.uiver.app/?q=WzAsMixbMCwwLCJBIl0sWzEsMCwiQiJdLFswLDEsImYiXV0=)
 
@@ -68,8 +93,8 @@ Diagrams may be created and modified using either the mouse, by clicking and dra
 
 [![Export to LaTeX](screenshots/export.png "Export to LaTeX")](https://q.uiver.app/?q=WzAsOCxbMCwwLCJHeCJdLFsxLDAsIkZ4Il0sWzIsMCwiR3giXSxbMywwLCJGeCJdLFswLDEsIkd5Il0sWzEsMSwiRnkiXSxbMiwxLCJHeSJdLFszLDEsIkZ5Il0sWzAsMSwiXFxiZXRhX3giXSxbMSwyLCJcXGFscGhhX3giXSxbMiwzLCJcXGJldGFfeCJdLFswLDQsIkdmIiwyXSxbNCw1LCJcXGJldGFfeSIsMl0sWzUsNiwiXFxhbHBoYV95IiwyXSxbNiw3LCJcXGJldGFfeSIsMl0sWzMsNywiRmYiXSxbMSw1LCJGZiIsMV0sWzIsNiwiR2YiLDFdLFs0LDEsIlxcYmV0YV9mIiwwLHsibGVuZ3RoIjo1MCwibGV2ZWwiOjJ9XSxbNSwyLCJcXGFscGhhX2YiLDAseyJsZW5ndGgiOjUwLCJsZXZlbCI6Mn1dLFs2LDMsIlxcYmV0YSdmIiwwLHsibGVuZ3RoIjo1MCwibGV2ZWwiOjJ9XSxbMCwyLCIxIiwwLHsiY3VydmUiOi00fV0sWzUsNywiMSIsMix7ImN1cnZlIjo0fV0sWzEsMjEsIlxcdmFyZXBzaWxvbl94IiwwLHsibGVuZ3RoIjo1MH1dLFsyMiw2LCJcXGV0YV95IiwyLHsibGVuZ3RoIjo1MH1dXQ==)
 
-When you export diagrams to LaTeX or Typst, **quiver** will embed a link to the diagram, which will allow you
-to return to it later if you decide it needs to be modified, or to share it with others.
+TikZ exports use Free Form Quiver's absolute-coordinate format and can be imported back into this
+fork. The original grid-based `tikz-cd` importer remains available for compatible diagrams.
 
 ### Other features
 - Multiple selection, making mass changes easy and fast.
@@ -81,11 +106,11 @@ to return to it later if you decide it needs to be modified, or to share it with
 
 ## Editor integration
 
-See [Editor integration](https://github.com/varkor/quiver/wiki/Editor-integration) on the [quiver
-wiki](https://github.com/varkor/quiver/wiki).
+See [Editor integration](https://github.com/varkor/quiver/wiki/Editor-integration) on the upstream
+Quiver wiki.
 
 ## Building
-Run `make` from the command line, and then open `src/index.html` in your favourite web browser.
+Run `make` from the command line, then run `make serve` and open `localhost:8000` in your browser.
 Run `make test` to check the freeform layout model and UI syntax.
 
 If this fails, you might be using an incompatible version of Make or Bash. In this case, you can
@@ -100,10 +125,12 @@ make serve
 ```
 in the **quiver** directory and then open `localhost:8000` in browser.
 
-If you have any other problems building **quiver**, [open an
-issue](https://github.com/varkor/quiver/issues/new) detailing the problem and I'll try to help.
+If you find a Free Form Quiver issue, [open an
+issue](https://github.com/NimaJafariComp/free-form-quiver/issues/new) with steps to reproduce it.
 
 ## Thanks to
+- [varkor/quiver](https://github.com/varkor/quiver), the upstream project on which Free Form
+  Quiver is based.
 - [S. C. Steenkamp](https://www.cl.cam.ac.uk/~scs62/), for helpful discussions regarding the
 aesthetic rendering of arrows.
 - [AndréC](https://tex.stackexchange.com/users/138900/andr%c3%a9c), for the custom TikZ style for
