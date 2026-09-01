@@ -1069,7 +1069,7 @@ class UI {
         }
     }
 
-    add_free_arrow(source, target = { x: source.x + 80, y: source.y }, id = null) {
+    add_free_arrow(source, target = { x: source.x + 80, y: source.y }, id = null, existing = null) {
         const arrow_id = id || `free-arrow-${this.next_free_arrow_id++}`;
         const restored_number = /^free-arrow-(\d+)$/.exec(arrow_id);
         if (restored_number !== null) {
@@ -1098,16 +1098,25 @@ class UI {
         head.classList.add("free-arrow-head");
         svg.append(line, head);
         const arrow = { id: arrow_id, source: { ...source }, target: { ...target }, element: svg, line, head, handles: {} };
-        const anchors = {};
-        for (const [name, point] of Object.entries({ source, target })) {
-            const anchor = new Vertex(this, "", new Position(this.next_free_arrow_id++, 0));
-            anchor.freeform_anchor = true;
-            anchor.element.class_list.add("freeform-anchor");
-            this.set_freeform_bounds(anchor, new Bounds(point.x, point.y, 1, 1));
-            anchors[name] = anchor;
+        const anchors = existing?.anchors || {};
+        if (existing === null) {
+            for (const [name, point] of Object.entries({ source, target })) {
+                const anchor = new Vertex(this, "", new Position(this.next_free_arrow_id++, 0));
+                anchor.freeform_anchor = true;
+                anchor.element.class_list.add("freeform-anchor");
+                this.set_freeform_bounds(anchor, new Bounds(point.x, point.y, 1, 1));
+                anchors[name] = anchor;
+            }
+        } else {
+            for (const [name, point] of Object.entries({ source, target })) {
+                const anchor = anchors[name];
+                anchor.freeform_anchor = true;
+                anchor.element.class_list.add("freeform-anchor");
+                this.set_freeform_bounds(anchor, new Bounds(point.x, point.y, 1, 1));
+            }
         }
         arrow.anchors = anchors;
-        arrow.edge = new Edge(this, "", anchors.source, anchors.target, { shorten: { source: 0, target: 0 } });
+        arrow.edge = existing?.edge || new Edge(this, "", anchors.source, anchors.target, { shorten: { source: 0, target: 0 } });
         arrow.edge.freeform_arrow = arrow;
         const render_edge = arrow.edge.render.bind(arrow.edge);
         arrow.edge.render = (ui) => {
@@ -1125,7 +1134,7 @@ class UI {
         });
         this.canvas.element.append(svg);
         this.free_arrows.set(arrow_id, arrow);
-        this.render_free_arrow(arrow);
+        arrow.edge.render(this);
         this.select_free_arrow(arrow);
         return arrow;
     }
@@ -1575,7 +1584,10 @@ class UI {
             version: 4,
             items,
             boxes: this.box_store.serialize(),
-            free_arrows: Array.from(this.free_arrows.values()).map(({ id, source, target }) => ({ id, source, target })),
+            free_arrows: Array.from(this.free_arrows.values()).map(({ id, source, target, anchors }) => ({
+                id, source, target,
+                anchors: { source: anchors.source.code, target: anchors.target.code },
+            })),
             free_arrow_anchors: Array.from(this.free_arrows.values()).flatMap((arrow) => [
                 arrow.anchors.source.code,
                 arrow.anchors.target.code,
@@ -1619,27 +1631,43 @@ class UI {
                 this.render_rectangular_box(box);
             }
             // Free arrows use internal endpoint vertices so they can share Quiver's edge inspector.
-            // They are present in legacy base64 payloads, but must never reappear as visible nodes.
-            const anchor_codes = new Set(data.free_arrow_anchors || []);
-            if (data.free_arrow_anchors === undefined) {
-                for (const free_arrow of data.free_arrows || []) {
-                    for (const point of [free_arrow.source, free_arrow.target]) {
-                        const match = this.freeform_vertices().find((vertex) => {
-                            const bounds = this.freeform_bounds_for(vertex);
-                            return vertex.label === "" && Math.abs(bounds.x + bounds.width / 2 - point.x) < 1
-                                && Math.abs(bounds.y + bounds.height / 2 - point.y) < 1;
-                        });
-                        if (match !== undefined) anchor_codes.add(match.code);
-                    }
-                }
-            }
-            for (const code of anchor_codes) {
-                const anchor = this.codes.get(code);
-                if (anchor?.is_vertex()) this.remove_cell(anchor, this.present);
-            }
-            for (const free_arrow of data.free_arrows || []) {
+            // Reuse those vertices and their backing edge after reload: the edge stores its label,
+            // shape, and all inspector settings in Quiver's normal URL data.
+            const legacy_anchor_codes = data.free_arrow_anchors || [];
+            for (const [index, free_arrow] of (data.free_arrows || []).entries()) {
                 if (free_arrow.source && free_arrow.target) {
-                    this.add_free_arrow(free_arrow.source, free_arrow.target, free_arrow.id);
+                    let anchor_codes = free_arrow.anchors || {
+                        source: legacy_anchor_codes[index * 2],
+                        target: legacy_anchor_codes[index * 2 + 1],
+                    };
+                    let anchors = {
+                        source: this.codes.get(anchor_codes.source),
+                        target: this.codes.get(anchor_codes.target),
+                    };
+                    if (!anchors.source?.is_vertex() || !anchors.target?.is_vertex()) {
+                        anchors = {};
+                        for (const [name, point] of Object.entries({
+                            source: free_arrow.source,
+                            target: free_arrow.target,
+                        })) {
+                            const match = this.freeform_vertices().find((vertex) => {
+                                const bounds = this.freeform_bounds_for(vertex);
+                                return vertex.label === "" && Math.abs(bounds.x + bounds.width / 2 - point.x) < 1
+                                    && Math.abs(bounds.y + bounds.height / 2 - point.y) < 1;
+                            });
+                            if (match !== undefined) anchors[name] = match;
+                        }
+                    }
+                    const edge = anchors.source && anchors.target
+                        ? Array.from(this.quiver.all_cells()).find((cell) => cell.is_edge()
+                            && cell.source === anchors.source && cell.target === anchors.target)
+                        : null;
+                    this.add_free_arrow(
+                        free_arrow.source,
+                        free_arrow.target,
+                        free_arrow.id,
+                        edge === undefined || edge === null ? null : { edge, anchors },
+                    );
                 }
             }
         } catch (_) {
