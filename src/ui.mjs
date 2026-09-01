@@ -1116,7 +1116,14 @@ class UI {
             }
         }
         arrow.anchors = anchors;
-        arrow.edge = existing?.edge || new Edge(this, "", anchors.source, anchors.target, { shorten: { source: 0, target: 0 } });
+        // Side-aligned labels intentionally move farther from an edge as their width grows so
+        // that they do not overlap its path. A free arrow has no node layout to give that motion
+        // context, so start its label centred at a stable point instead. The usual inspector still
+        // lets the user opt into left/right label alignment.
+        arrow.edge = existing?.edge || new Edge(this, "", anchors.source, anchors.target, {
+            shorten: { source: 0, target: 0 },
+            label_alignment: "centre",
+        });
         arrow.edge.freeform_arrow = arrow;
         const render_edge = arrow.edge.render.bind(arrow.edge);
         arrow.edge.render = (ui) => {

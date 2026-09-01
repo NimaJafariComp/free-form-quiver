@@ -201,6 +201,12 @@ test("free-arrow endpoint anchors reuse their saved edge when restoring a diagra
     assert.match(ui, /arrow\.edge\.render\(this\)/);
 });
 
+test("new free-arrow labels use a stable centred alignment", () => {
+    const ui = readFileSync(resolve("src/ui.mjs"), "utf8");
+    assert.match(ui, /A free arrow has no node layout to give that motion[\s\S]*?context/);
+    assert.match(ui, /shorten: \{ source: 0, target: 0 \},\s*label_alignment: "centre"/);
+});
+
 test("freeform save state contains every diagram-specific persistence contract", () => {
     const ui = readFileSync(resolve("src/ui.mjs"), "utf8");
     const quiver = readFileSync(resolve("src/quiver.mjs"), "utf8");
