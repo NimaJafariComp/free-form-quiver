@@ -45,6 +45,15 @@ test("SVG omits invisible editor frames and unrelated document styles", () => {
     assert.doesNotMatch(svg, /KaTeX_Main\.woff2|injected|outline:99px/);
 });
 
+test("raster SVG avoids foreign objects that taint canvas exports", () => {
+    const svg = freeform_svg({
+        nodes: [{ id: "node", bounds: { x: 0, y: 0, width: 32, height: 32 }, label: "A", symbol: "bullet", symbol_size: 18 }],
+        edges: [{ source: "node", target: "node", label: "f", svg_markup: "<foreignObject><div>f</div></foreignObject><path d=\"M 0 0\"/>" }],
+    }, { rasterize: true });
+    assert.doesNotMatch(svg, /foreignObject/);
+    assert.match(svg, />A<|>f</);
+});
+
 test("overflowing labels, external nodes, and arrow styles remain scene content", () => {
     const styles = ["cell", "dashed", "dotted", "squiggly", "barred", "double barred", "bullet solid", "bullet hollow"];
     const fixture = {
