@@ -1573,6 +1573,47 @@ user has already pressed semicolon, placing us in command mode. */
     border-radius: 0 0 8px 0;
 }
 
+/* Arrow creation offers two distinct gestures. Render this submenu as a short vertical menu so
+   descriptive labels do not overlap their icons or each other. */
+.toolbar .action .subtoolbar.arrow-menu {
+    min-width: 152px;
+}
+
+.toolbar .action .subtoolbar.arrow-menu .action {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    width: 152px;
+    height: 42px;
+    padding: 0 12px;
+    text-align: left;
+}
+
+.toolbar .action .subtoolbar.arrow-menu .action:first-of-type {
+    border-radius: 0;
+}
+
+.toolbar .action .subtoolbar.arrow-menu .action:last-of-type {
+    border-radius: 0 0 8px 8px;
+}
+
+.toolbar .action .subtoolbar.arrow-menu .action .symbol {
+    display: flex;
+    width: 28px;
+    flex: 0 0 28px;
+}
+
+.toolbar .action .subtoolbar.arrow-menu .action .name {
+    position: static;
+    transform: none;
+    font-size: 12px;
+    line-height: 1;
+}
+
+.toolbar .action .subtoolbar.arrow-menu .action .shortcut {
+    display: none;
+}
+
 button.flash {
     animation: background-flash 0.4s ease-in;
 }

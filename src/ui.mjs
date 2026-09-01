@@ -8398,6 +8398,7 @@ class Toolbar {
         );
 
         const arrows = add_subtoolbar("Add arrow", "add-arrow");
+        arrows.class_list.add("arrow-menu");
         add_action("Connected arrow", "add-arrow", [], () => ui.add_arrow_from_selection(), arrows);
         add_action("Free arrow", "add-arrow", [], () => ui.toggle_free_arrow_placement(), arrows);
 

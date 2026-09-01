@@ -167,6 +167,15 @@ test("freeform Add arrow waits for explicit source and target clicks", () => {
     assert.match(ui, /enable_if\("add-arrow", ui\.is_freeform\(\) && ui\.in_mode\(\.\.\.default_pan\)\)/);
 });
 
+test("freeform arrow choices use a readable vertical submenu", () => {
+    const ui = readFileSync(resolve("src/ui.mjs"), "utf8");
+    const css = readFileSync(resolve("src/main.css"), "utf8");
+    assert.match(ui, /arrows\.class_list\.add\("arrow-menu"\)/);
+    assert.match(css, /\.subtoolbar\.arrow-menu \{[\s\S]*?min-width: 152px/);
+    assert.match(css, /\.subtoolbar\.arrow-menu \.action \{[\s\S]*?display: flex[\s\S]*?width: 152px/);
+    assert.match(css, /\.subtoolbar\.arrow-menu \.action \.name \{[\s\S]*?position: static/);
+});
+
 test("persistent hand tool pans only until toggled off", () => {
     const ui = readFileSync(resolve("src/ui.mjs"), "utf8");
     const css = readFileSync(resolve("src/main.css"), "utf8");
