@@ -1184,6 +1184,15 @@ class UI {
         return arrow;
     }
 
+    restore_free_arrow_overlay(edge) {
+        const arrow = edge.freeform_arrow;
+        if (arrow === undefined || this.free_arrows.has(arrow.id)) return;
+        this.add_free_arrow(arrow.source, arrow.target, arrow.id, {
+            edge,
+            anchors: arrow.anchors,
+        });
+    }
+
     place_free_arrow_if_armed(event) {
         if (!this.free_arrow_placement_active) return false;
         event.preventDefault();
@@ -1294,6 +1303,18 @@ class UI {
         if (this.arrow_placement_active) this.add_arrow_from_selection();
         this.deselect();
         this.select(...this.quiver.all_cells());
+    }
+
+    freeform_deletion_cells(cells) {
+        const result = new Set();
+        for (const cell of cells) {
+            if (cell.is_edge() && cell.freeform_arrow) {
+                result.add(cell.freeform_arrow.anchors.source);
+                result.add(cell.freeform_arrow.anchors.target);
+            }
+        }
+        for (const cell of cells) result.add(cell);
+        return result;
     }
 
     /// Handle one endpoint of the explicit Add arrow gesture. A source click
@@ -3734,7 +3755,7 @@ class UI {
                 // This keyboard shortcut will first trigger the copy action.
                 this.history.add(this, [{
                     kind: "delete",
-                    cells: this.quiver.transitive_dependencies(this.selection),
+                    cells: this.freeform_deletion_cells(this.quiver.transitive_dependencies(this.selection)),
                 }], true);
                 this.panel.update(this);
             }
@@ -4225,9 +4246,34 @@ class UI {
         // Deleting any item is an explicit editing action, not part of a
         // pending arrow gesture. Never let the gesture survive it.
         if (this.is_freeform()) this.cancel_freeform_arrow_placement();
+        if (cell.freeform_arrow) {
+            const arrow = cell.freeform_arrow;
+            arrow.element.remove();
+            this.free_arrows.delete(arrow.id);
+            if (this.selected_free_arrow_id === arrow.id) this.selected_free_arrow_id = null;
+            // The visual arrow is backed by two internal vertices. Remove them with the edge so
+            // neither an orphaned handle nor an invisible graph cell survives deletion.
+            const removed = new Set();
+            for (const part of [cell, arrow.anchors.source, arrow.anchors.target]) {
+                for (const deleted of this.quiver.remove(part, when)) removed.add(deleted);
+            }
+            for (const deleted of removed) {
+                if (deleted.is_vertex() && this.is_freeform()) this.freeform_layout.delete(deleted);
+                this.deselect(deleted);
+                deleted.element.remove();
+            }
+            this.colour_picker.update_diagram_colours(this);
+            return;
+        }
         // Remove this cell and its dependents from the quiver and then from the HTML.
         const update_positions = new Set();
         for (const removed of this.quiver.remove(cell, when)) {
+            if (removed.freeform_arrow) {
+                const arrow = removed.freeform_arrow;
+                arrow.element.remove();
+                this.free_arrows.delete(arrow.id);
+                if (this.selected_free_arrow_id === arrow.id) this.selected_free_arrow_id = null;
+            }
             if (removed.is_vertex()) {
                 if (this.is_freeform()) {
                     this.freeform_layout.delete(removed);
@@ -5231,6 +5277,7 @@ class History {
                     for (const cell of action.cells) {
                         ui.quiver.add(cell);
                         ui.add_cell(cell);
+                        if (cell.freeform_arrow) ui.restore_free_arrow_overlay(cell);
                     }
                     update_panel = true;
                     break;
@@ -8597,7 +8644,7 @@ class Toolbar {
                     const box = ui.box_store.get(ui.selected_box_id);
                     ui.history.add(ui, [{ kind: "box-delete", box: box.toJSON() }], true);
                 } else {
-                    const cells = ui.quiver.transitive_dependencies(ui.selection);
+                    const cells = ui.freeform_deletion_cells(ui.quiver.transitive_dependencies(ui.selection));
                     const removed_vertices = new Set(Array.from(cells).filter((cell) => cell.is_vertex()));
                     const membership_actions = Array.from(ui.box_store.boxes.values()).flatMap((box) => {
                         const from = box.toJSON();

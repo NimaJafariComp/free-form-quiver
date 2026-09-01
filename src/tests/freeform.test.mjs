@@ -201,6 +201,15 @@ test("free-arrow endpoint anchors reuse their saved edge when restoring a diagra
     assert.match(ui, /arrow\.edge\.render\(this\)/);
 });
 
+test("deleting a free arrow removes its overlay and both internal anchors", () => {
+    const ui = readFileSync(resolve("src/ui.mjs"), "utf8");
+    assert.match(ui, /freeform_deletion_cells\(cells\)/);
+    assert.match(ui, /result\.add\(cell\.freeform_arrow\.anchors\.source\)/);
+    assert.match(ui, /arrow\.element\.remove\(\)/);
+    assert.match(ui, /this\.free_arrows\.delete\(arrow\.id\)/);
+    assert.match(ui, /ui\.restore_free_arrow_overlay\(cell\)/);
+});
+
 test("new free-arrow labels use a stable centred alignment", () => {
     const ui = readFileSync(resolve("src/ui.mjs"), "utf8");
     assert.match(ui, /A free arrow has no node layout to give that motion[\s\S]*?context/);
