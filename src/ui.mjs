@@ -1564,6 +1564,7 @@ class UI {
     freeform_payload() {
         const items = {};
         for (const vertex of this.quiver.cells[0] || []) {
+            if (vertex.freeform_anchor) continue;
             items[vertex.code] = {
                 bounds: this.freeform_bounds_for(vertex).toJSON(),
                 symbol_size: this.freeform_vertex_symbol_size(vertex),
@@ -1575,6 +1576,10 @@ class UI {
             items,
             boxes: this.box_store.serialize(),
             free_arrows: Array.from(this.free_arrows.values()).map(({ id, source, target }) => ({ id, source, target })),
+            free_arrow_anchors: Array.from(this.free_arrows.values()).flatMap((arrow) => [
+                arrow.anchors.source.code,
+                arrow.anchors.target.code,
+            ]),
         }));
         // Base64url has no `=` padding, so it remains stable in the fragment
         // identifier even in URLs handled by older Quiver tooling.
@@ -1612,6 +1617,25 @@ class UI {
                 const box = new RectangularBox(box_data);
                 this.box_store.add(box);
                 this.render_rectangular_box(box);
+            }
+            // Free arrows use internal endpoint vertices so they can share Quiver's edge inspector.
+            // They are present in legacy base64 payloads, but must never reappear as visible nodes.
+            const anchor_codes = new Set(data.free_arrow_anchors || []);
+            if (data.free_arrow_anchors === undefined) {
+                for (const free_arrow of data.free_arrows || []) {
+                    for (const point of [free_arrow.source, free_arrow.target]) {
+                        const match = this.freeform_vertices().find((vertex) => {
+                            const bounds = this.freeform_bounds_for(vertex);
+                            return vertex.label === "" && Math.abs(bounds.x + bounds.width / 2 - point.x) < 1
+                                && Math.abs(bounds.y + bounds.height / 2 - point.y) < 1;
+                        });
+                        if (match !== undefined) anchor_codes.add(match.code);
+                    }
+                }
+            }
+            for (const code of anchor_codes) {
+                const anchor = this.codes.get(code);
+                if (anchor?.is_vertex()) this.remove_cell(anchor, this.present);
             }
             for (const free_arrow of data.free_arrows || []) {
                 if (free_arrow.source && free_arrow.target) {

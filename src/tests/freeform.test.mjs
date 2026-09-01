@@ -191,6 +191,13 @@ test("free-arrow endpoint handles render above their backing edge", () => {
     assert.match(css, /\.free-arrow-handle \{[\s\S]*?pointer-events: all/);
 });
 
+test("free-arrow endpoint anchors are removed when restoring a saved diagram", () => {
+    const ui = readFileSync(resolve("src/ui.mjs"), "utf8");
+    assert.match(ui, /free_arrow_anchors/);
+    assert.match(ui, /Free arrows use internal endpoint vertices/);
+    assert.match(ui, /this\.remove_cell\(anchor, this\.present\)/);
+});
+
 test("persistent hand tool pans only until toggled off", () => {
     const ui = readFileSync(resolve("src/ui.mjs"), "utf8");
     const css = readFileSync(resolve("src/main.css"), "utf8");
