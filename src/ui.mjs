@@ -10534,7 +10534,8 @@ document.addEventListener("DOMContentLoaded", () => {
     };
 
     // Immediately load the KaTeX library as an ES6 module (regardless of the current renderer).
-    KaTeX = import("/KaTeX/katex.mjs").then((module) => {
+    const katexModuleUrl = new URL("./KaTeX/katex.mjs", import.meta.url).href;
+    KaTeX = import(katexModuleUrl).then((module) => {
         // KaTeX is fast enough to be worth waiting for, but not
         // immediately available. In this case, we delay loading
         // the quiver until the library has loaded.
@@ -10552,7 +10553,7 @@ document.addEventListener("DOMContentLoaded", () => {
     // Load the style sheet needed for KaTeX.
     document.head.appendChild(new DOM.Element("link", {
         rel: "stylesheet",
-        href: "KaTeX/katex.css",
+        href: new URL("./KaTeX/katex.css", import.meta.url).href,
     }).element);
 
     // Prevent clicking on the logo from having any effect other than opening the link.
