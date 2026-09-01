@@ -56,8 +56,9 @@ For the original Quiver keyboard workflow and conventional commutative-diagram f
 
 ## Features & screenshots
 
-**quiver** features an efficient, intuitive interface for creating complex commutative diagrams and
-pasting diagrams. It's easy to draw diagrams involving pullbacks and pushouts,
+Free Form Quiver retains Quiver's efficient arrow editor while adding independent placement for
+every item. It supports traditional commutative diagrams as well as free-positioned figures,
+including pullbacks and pushouts,
 
 [![Pullback](screenshots/pullback.png "Pullback")](http://q.uiver.app/?q=WzAsNSxbMSwyLCJBIl0sWzIsMSwiQiJdLFsyLDIsIkMiXSxbMSwxLCJBIFxcdGltZXNfQyBCIl0sWzAsMCwiWCJdLFswLDIsImYiLDJdLFsxLDIsImciXSxbMywwLCJcXHBpXzEiLDJdLFszLDEsIlxccGlfMiJdLFs0LDAsImEiLDIseyJjdXJ2ZSI6M31dLFs0LDEsImIiLDAseyJjdXJ2ZSI6LTN9XSxbNCwzLCJcXGxhbmdsZSBhLCBiIFxccmFuZ2xlIiwxLHsic3R5bGUiOnsiYm9keSI6eyJuYW1lIjoiZGFzaGVkIiwibGV2ZWwiOjF9fX1dLFszLDIsIiIsMSx7InN0eWxlIjp7Im5hbWUiOiJjb3JuZXIifX1dXQ==)
 
