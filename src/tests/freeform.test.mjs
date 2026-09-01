@@ -185,6 +185,12 @@ test("the LaTeX importer detects this fork's freeform TikZ vocabulary", () => {
     assert.match(quiver, /freeformquiverarrow/);
 });
 
+test("free-arrow endpoint handles render above their backing edge", () => {
+    const css = readFileSync(resolve("src/main.css"), "utf8");
+    assert.match(css, /\.freeform-free-arrow \{[\s\S]*?z-index: 20/);
+    assert.match(css, /\.free-arrow-handle \{[\s\S]*?pointer-events: all/);
+});
+
 test("persistent hand tool pans only until toggled off", () => {
     const ui = readFileSync(resolve("src/ui.mjs"), "utf8");
     const css = readFileSync(resolve("src/main.css"), "utf8");

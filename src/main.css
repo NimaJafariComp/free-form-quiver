@@ -526,7 +526,7 @@ kbd {
 }
 
 .ui.freeform.placing-free-arrow .canvas { cursor: crosshair; }
-.freeform-free-arrow { position: absolute; left: 0; top: 0; width: 1px; height: 1px; overflow: visible; z-index: 1; pointer-events: none; }
+.freeform-free-arrow { position: absolute; left: 0; top: 0; width: 1px; height: 1px; overflow: visible; z-index: 20; pointer-events: none; }
 .vertex.freeform-anchor { display: none; }
 .free-arrow-line { stroke: transparent; stroke-width: 14; pointer-events: stroke; }
 .free-arrow-head { display: none; }
