@@ -1662,11 +1662,17 @@ class UI {
                         ? Array.from(this.quiver.all_cells()).find((cell) => cell.is_edge()
                             && cell.source === anchors.source && cell.target === anchors.target)
                         : null;
+                    // A free arrow's label and inspector options live on this ordinary Quiver
+                    // edge. Never replace a missing saved edge with a default arrow: that would
+                    // make a successful-looking reload silently discard diagram content.
+                    if (edge === undefined || edge === null) {
+                        throw new Error("free arrow backing edge is missing");
+                    }
                     this.add_free_arrow(
                         free_arrow.source,
                         free_arrow.target,
                         free_arrow.id,
-                        edge === undefined || edge === null ? null : { edge, anchors },
+                        { edge, anchors },
                     );
                 }
             }

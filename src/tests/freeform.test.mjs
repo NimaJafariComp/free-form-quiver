@@ -196,8 +196,21 @@ test("free-arrow endpoint anchors reuse their saved edge when restoring a diagra
     assert.match(ui, /free_arrow_anchors/);
     assert.match(ui, /Free arrows use internal endpoint vertices/);
     assert.match(ui, /free_arrow\.anchors/);
-    assert.match(ui, /edge === undefined \|\| edge === null \? null : \{ edge, anchors \}/);
+    assert.match(ui, /free arrow backing edge is missing/);
+    assert.match(ui, /\{ edge, anchors \}/);
     assert.match(ui, /arrow\.edge\.render\(this\)/);
+});
+
+test("freeform save state contains every diagram-specific persistence contract", () => {
+    const ui = readFileSync(resolve("src/ui.mjs"), "utf8");
+    const quiver = readFileSync(resolve("src/quiver.mjs"), "utf8");
+    assert.match(ui, /bounds: this\.freeform_bounds_for\(vertex\)\.toJSON\(\)/);
+    assert.match(ui, /symbol_size: this\.freeform_vertex_symbol_size\(vertex\)/);
+    assert.match(ui, /boxes: this\.box_store\.serialize\(\)/);
+    assert.match(ui, /anchors: \{ source: anchors\.source\.code, target: anchors\.target\.code \}/);
+    assert.match(ui, /reuse those vertices and their backing edge/i);
+    assert.match(ui, /layout=freeform&freeform=/);
+    assert.match(quiver, /const \{ label, label_colour, options: \{ label_alignment, \.\.\.options \} \} = edge/);
 });
 
 test("persistent hand tool pans only until toggled off", () => {
