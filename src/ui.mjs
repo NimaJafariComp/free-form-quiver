@@ -2101,100 +2101,24 @@ class UI {
                         [{ key: "/", modifier: true }],
                     ))
             )
-            .add(new DOM.Element("p")
-                .add("For a guide on using keyboard shortcuts in ")
-                .add(new DOM.Element("b").add("quiver"))
-                .add(" see ")
-                .add(new DOM.Link(
-                    "https://github.com/varkor/quiver/blob/master/tutorial.md",
-                    "the tutorial"
-                ))
-                .add(".")
-            )
-            .add(new DOM.Element("h2").add("General"))
+            .add(new DOM.Element("p").add(
+                "Free Form Quiver uses a free-positioned canvas. Add nodes, text, and arrows from " +
+                "the toolbar, then click the canvas to place them."
+            ))
+            .add(new DOM.Element("h2").add("Freeform editing"))
             .add(new DOM.Table([
-                ["Dismiss errors, and panels;\nCancel modification or movement;\n"
-                    + "Hide focus point;\nDeselect, and dequeue cells", (td) =>
-                        Shortcuts.element(td, [{ key: "Escape" }])],
-                ["Import from LaTeX", (td) => Shortcuts.element(td, [{ key: "I", modifier: true }])],
-                [
-                    "Export to LaTeX or Typst",
-                    (td) => Shortcuts.element(td, [{ key: "E", modifier: true }])
-                ]
+                ["Add node, then click the canvas", (td) => Shortcuts.element(td, [{ key: "N" }])],
+                ["Add standalone text, then click the canvas", (td) => Shortcuts.element(td, [{ key: "T" }])],
+                ["Make selected node marker smaller", (td) => Shortcuts.element(td, [{ key: "[" }])],
+                ["Make selected node marker larger", (td) => Shortcuts.element(td, [{ key: "]" }])],
+                ["Focus / defocus selected label", (td) => Shortcuts.element(td, [{ key: "Enter" }])],
+                ["Delete selected item", (td) => Shortcuts.element(td, [
+                    { key: "Backspace" }, { key: "Delete" }
+                ])],
+                ["Cancel placement, movement, or selection", (td) =>
+                    Shortcuts.element(td, [{ key: "Escape" }])],
             ]))
-            .add(new DOM.Element("h2").add("Navigation"))
-            .add(new DOM.Table([
-                ["Pan view", "Scroll"],
-                // Technically "pointer panning", but "mouse panning" is likely less confusing
-                // overall for users.
-                ["Enable mouse panning", (td) => Shortcuts.element(td, [
-                    { key: "Control" }, { key: "Alt" }
-                ])],
-                ["Enable touch panning", "Long press"],
-                ["Enable mouse zooming", (td) => Shortcuts.element(td, [
-                    { key: "Shift" }
-                ])],
-                ["Move focus point", (td) => Shortcuts.element(td, [
-                    { key: "ArrowLeft" },
-                    { key: "ArrowUp" },
-                    { key: "ArrowDown" },
-                    { key: "ArrowRight" },
-                ])],
-                ["Select next queued cell", (td) => Shortcuts.element(td, [{ key: "Tab" }])],
-                ["Select previous queued cell", (td) => Shortcuts.element(td, [
-                    { key: "Tab", shift: true }
-                ])],
-                ["Select / deselect object", (td) => Shortcuts.element(td, [{ key: "S" }])],
-                ["Select cells", (td) => Shortcuts.element(td, [{ key: ";" }])],
-                ["Toggle cell selection", (td) => Shortcuts.element(td, [
-                    { key: "'" }
-                ])],
-            ]))
-            .add(new DOM.Element("h2").add("Modification"))
-            .add(new DOM.Table([
-                ["Focus / defocus label input", (td) => Shortcuts.element(td, [{ key: "Enter" }])],
-                ["Create object, and connect to selection", (td) => Shortcuts.element(td, [
-                    { key: " " }
-                ])],
-                ["Move selected objects", (td) => Shortcuts.element(td, [{ key: "B" }])],
-                ["Change source", (td) => Shortcuts.element(td, [{ key: "," }])],
-                ["Change target", (td) => Shortcuts.element(td, [{ key: "." }])],
-                ["Create arrows from selection", (td) => Shortcuts.element(td, [{ key: "/" }])],
-                ["Copy", (td) => Shortcuts.element(td, [{ key: "C", modifier: true }])],
-                ["Cut", (td) => Shortcuts.element(td, [{ key: "X", modifier: true }])],
-                ["Paste", (td) => Shortcuts.element(td, [{ key: "V", modifier: true }])],
-            ]))
-            .add(new DOM.Element("h2").add("Styling"))
-            .add(new DOM.Table([
-                ["Reverse arrows", (td) => Shortcuts.element(td, [{ key: "R" }])],
-                ["Flip arrows", (td) => Shortcuts.element(td, [{ key: "E" }])],
-                ["Flip labels", (td) => Shortcuts.element(td, [{ key: "F" }])],
-                ["Left-align labels", (td) => Shortcuts.element(td, [{ key: "V" }])],
-                ["Centre-align labels", (td) => Shortcuts.element(td, [{ key: "C" }])],
-                ["Over-align labels", (td) => Shortcuts.element(td, [{ key: "X" }])],
-                ["Modify label position", (td) => Shortcuts.element(td, [{ key: "I" }])],
-                ["Modify offset", (td) => Shortcuts.element(td, [{ key: "O" }])],
-                ["Modify curve", (td) => Shortcuts.element(td, [{ key: "K" }])],
-                ["Modify radius", (td) => Shortcuts.element(td, [{ key: "N" }])],
-                ["Modify length", (td) => {
-                    Shortcuts.element(td, [{ key: "L" }]);
-                    td.add(" (hold ");
-                    // The `span` here is to avoid a CSS `margin-left` rule.
-                    Shortcuts.element(td.add(new DOM.Element("span")), [{ key: "Shift" }]);
-                    td.add(" to shorten symmetrically)");
-                }],
-                ["Modify level", (td) => Shortcuts.element(td, [{ key: "M" }])],
-                ["Modify style", (td) => Shortcuts.element(td, [{ key: "D" }])],
-                ["Display as arrow", (td) => Shortcuts.element(td, [{ key: "A" }])],
-                ["Display as adjunction", (td) => Shortcuts.element(td, [{ key: "J" }])],
-                ["Display as pullback/pushout", (td) => {
-                    Shortcuts.element(td, [{ key: "P" }]);
-                    td.add(" (press again to switch corner style)");
-                }],
-                ["Modify label colour", (td) => Shortcuts.element(td, [{ key: "Y" }])],
-                ["Modify arrow colour", (td) => Shortcuts.element(td, [{ key: "U" }])]
-            ]))
-            .add(new DOM.Element("h2").add("Toolbar"))
+            .add(new DOM.Element("h2").add("Diagram"))
             .add(new DOM.Table([
                 ["Save diagram in URL", (td) => Shortcuts.element(td, [
                     { key: "S", modifier: true }
@@ -2210,67 +2134,52 @@ class UI {
                 ["Deselect all", (td) => Shortcuts.element(td, [
                     { key: "A", modifier: true, shift: true }
                 ])],
-                ["Delete", (td) => Shortcuts.element(td, [
-                    { key: "Backspace" }, { key: "Delete" }
-                ])],
                 ["Centre view", (td) => Shortcuts.element(td, [{ key: "G" }])],
                 ["Zoom out", (td) => Shortcuts.element(td, [{ key: "-", modifier: true }])],
                 ["Zoom in", (td) => Shortcuts.element(td, [{ key: "=", modifier: true }])],
-                ["Toggle grid", (td) => Shortcuts.element(td, [{ key: "H" }])],
                 ["Toggle hints", (td) => Shortcuts.element(td, [{
                     key: "H", modifier: true, shift: true
                 }])]
             ]))
-            .add(new DOM.Element("h2").add("Export"))
+            .add(new DOM.Element("h2").add("Import and export"))
             .add(new DOM.Table([
-                ["Toggle diagram centring", (td) => Shortcuts.element(td, [{ key: "C" }])],
-                ["Toggle ampersand replacement", (td) => Shortcuts.element(td, [{ key: "A" }])],
-                ["Toggle cramped spacing", (td) => Shortcuts.element(td, [{ key: "R" }])],
-                ["Toggle standalone", (td) => Shortcuts.element(td, [{ key: "S" }])],
-                ["Toggle fixed size", (td) => Shortcuts.element(td, [{ key: "F" }])],
+                ["Import LaTeX / TikZ", (td) => Shortcuts.element(td, [{ key: "I", modifier: true }])],
+                ["Open export panel", (td) => Shortcuts.element(td, [{ key: "E", modifier: true }])],
+                ["Open this shortcuts panel", (td) => Shortcuts.element(td, [{ key: "/", modifier: true }])],
             ])));
 
         // Set up the "About" pane.
         panes.push(new DOM.Div({ id: "about-pane", class: "pane hidden" })
             .add(new DOM.Element("h1").add("About"))
-            .add(new DOM.Element("p").add(new DOM.Element("b").add("quiver")).add(
-                " is a modern, graphical editor for commutative and pasting " +
-                "diagrams, capable of rendering high-quality diagrams for screen viewing, and " +
-                "exporting to LaTeX via "
-            ).add(new DOM.Code("tikz-cd"))
-            .add(" and Typst via ")
-            .add(new DOM.Code("fletcher"))
-            .add("."))
+            .add(new DOM.Element("p").add(new DOM.Element("b").add("Free Form Quiver")).add(
+                " is a free-positioned diagram editor for commutative diagrams, wiring diagrams, " +
+                "and annotated figures. Nodes, standalone text, arrows, and boxes each keep their " +
+                "own position on the canvas."
+            ))
             .add(new DOM.Element("p")
-                .add("Creating and modifying diagrams with ")
-                .add(new DOM.Element("b").add("quiver"))
-                .add(
-                    " is orders of magnitude faster than writing the equivalent LaTeX or Typst " +
-                    "by hand and, with a little experience, competes with pen-and-paper."
-                )
-                .add(" To learn how to use ")
-                .add(new DOM.Element("b").add("quiver"))
-                .add(" efficiently, see ")
+                .add("Use Add node, Add text, and the Add arrow menu to construct a " +
+                    "diagram. Free arrows have draggable endpoint handles and share the same style " +
+                    "controls as connected arrows. SVG, PNG, and absolute-coordinate TikZ exports " +
+                    "preserve the freeform figure.")
+            )
+            .add(new DOM.Element("p")
+                .add("For a guide to the Free Form Quiver workflow, see ")
                 .add(new DOM.Link(
-                    "https://github.com/varkor/quiver/blob/master/tutorial.md",
-                    "the tutorial"
+                    "https://github.com/NimaJafariComp/free-form-quiver#how-to-use-free-form-quiver",
+                    "the README"
                 ))
                 .add(".")
             )
             .add(new DOM.Element("p")
-                .add("The editor is open source and may be found ")
-                .add(new DOM.Link("https://github.com/varkor/quiver", "on GitHub", true))
-                .add(
-                    ". If you would like to request a feature, or want to report an issue, you can "
-                ).add(new DOM.Link("https://github.com/varkor/quiver/issues", "do so here", true))
-                .add(".")
-            )
-            .add(new DOM.Element("p").add("You can follow ")
-                .add(new DOM.Element("b").add("quiver")).add(" on ")
-                .add(new DOM.Link("https://mathstodon.xyz/@quiver", "Mastodon", true))
-                .add(" or ")
-                .add(new DOM.Link("https://twitter.com/q_uiver_app", "Twitter", true))
-                .add(" for updates on new features.")
+                .add("Free Form Quiver is open source at ")
+                .add(new DOM.Link(
+                    "https://github.com/NimaJafariComp/free-form-quiver",
+                    "NimaJafariComp/free-form-quiver",
+                    true,
+                ))
+                .add(". Report fork-specific issues there. It is based on ")
+                .add(new DOM.Link("https://github.com/varkor/quiver", "varkor/quiver", true))
+                .add(", whose original editor and contributors remain credited below.")
             )
             .add(new DOM.Element("h2").add("Thanks to"))
             .add(new DOM.List(false, [
