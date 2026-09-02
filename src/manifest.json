@@ -1,6 +1,6 @@
 {
-  "name": "quiver",
-  "description": "A modern commutative diagram editor.",
+  "name": "Free Form Quiver",
+  "description": "A freeform diagram editor for commutative diagrams, wiring diagrams, and annotations.",
   "start_url": ".",
   "display": "standalone",
   "theme_color": "#1a1a1a",
