@@ -229,6 +229,14 @@ test("freeform text is marker-free, editable, and saved with the diagram", () =>
     assert.match(css, /\.vertex\.freeform-text \.label[\s\S]*?left: 0/);
 });
 
+test("clearing standalone text removes it after it loses selection", () => {
+    const ui = readFileSync(resolve("src/ui.mjs"), "utf8");
+    assert.match(ui, /freeform_membership_deletion_actions\(cells\)/);
+    assert.match(ui, /remove_unselected_empty_freeform_text\(\)/);
+    assert.match(ui, /cell\.freeform_text && cell\.label\.trim\(\) === "" && !this\.selection\.has\(cell\)/);
+    assert.match(ui, /if \(this\.is_freeform\(\)\) setTimeout\(\(\) => this\.remove_unselected_empty_freeform_text\(\)\)/);
+});
+
 test("text settings rewrite the selected item's LaTeX while preserving its other setting", () => {
     const ui = readFileSync(resolve("src/ui.mjs"), "utf8");
     const css = readFileSync(resolve("src/main.css"), "utf8");

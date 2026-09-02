@@ -1371,6 +1371,33 @@ class UI {
         return result;
     }
 
+    /// Remove deleted vertices from their boxes as part of the same history event.
+    freeform_membership_deletion_actions(cells) {
+        const removed_vertices = new Set(Array.from(cells).filter((cell) => cell.is_vertex()));
+        return Array.from(this.box_store.boxes.values()).flatMap((box) => {
+            const from = box.toJSON();
+            box.setMembers(box.members.filter((code) => !removed_vertices.has(this.codes.get(code))));
+            return JSON.stringify(from.members) === JSON.stringify(box.members) ? [] : [{
+                kind: "box-update", from, to: box.toJSON(),
+                vertices: { from: [], to: [] },
+            }];
+        });
+    }
+
+    /// Empty text remains editable while selected. Once it loses selection, remove the underlying
+    /// marker-free vertex so it cannot leave an empty outline on the canvas.
+    remove_unselected_empty_freeform_text() {
+        const texts = Array.from(this.quiver.all_cells()).filter((cell) => {
+            return cell.freeform_text && cell.label.trim() === "" && !this.selection.has(cell);
+        });
+        if (texts.length === 0) return;
+        const cells = this.freeform_deletion_cells(new Set(texts));
+        this.history.add(this, [
+            { kind: "delete", cells },
+            ...this.freeform_membership_deletion_actions(cells),
+        ], true);
+    }
+
     /// Handle one endpoint of the explicit Add arrow gesture. A source click
     /// only arms the target step; an edge is created only after a distinct
     /// target is clicked.
@@ -4279,6 +4306,10 @@ class UI {
         this.update_focus_tooltip();
         this.panel.update(this);
         this.toolbar.update(this);
+        // Pointer selection changes are committed on pointer-up, after the label input has
+        // already blurred. Schedule this after deselection so empty text is removed only once it
+        // is genuinely no longer selected.
+        if (this.is_freeform()) setTimeout(() => this.remove_unselected_empty_freeform_text());
     }
 
     /// Adds a cell to the canvas.
@@ -8711,17 +8742,7 @@ class Toolbar {
                     ui.history.add(ui, [{ kind: "box-delete", box: box.toJSON() }], true);
                 } else {
                     const cells = ui.freeform_deletion_cells(ui.quiver.transitive_dependencies(ui.selection));
-                    const removed_vertices = new Set(Array.from(cells).filter((cell) => cell.is_vertex()));
-                    const membership_actions = Array.from(ui.box_store.boxes.values()).flatMap((box) => {
-                        const from = box.toJSON();
-                        box.setMembers(box.members.filter((code) => {
-                            return !removed_vertices.has(ui.codes.get(code));
-                        }));
-                        return JSON.stringify(from.members) === JSON.stringify(box.members) ? [] : [{
-                            kind: "box-update", from, to: box.toJSON(),
-                            vertices: { from: [], to: [] },
-                        }];
-                    });
+                    const membership_actions = ui.freeform_membership_deletion_actions(cells);
                     ui.history.add(ui, [{
                         kind: "delete",
                         cells,
