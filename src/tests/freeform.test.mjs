@@ -13,6 +13,8 @@ test("freeform layout URLs preserve Base64 payloads across save and load", () =>
     assert.ok(ui.includes("const padded = base64.padEnd"));
     assert.ok(ds.includes('const separator = segment.indexOf("=")'));
     assert.ok(ds.includes("segment.slice(separator + 1)"));
+    assert.ok(ds.includes('window.location.search.replace(/^\\?/, "")'));
+    assert.ok(!ds.includes('window.location.href.match(/\\?(.*)$/)'));
 });
 
 test("moving a node changes only that node's independent bounds", () => {

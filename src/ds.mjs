@@ -407,9 +407,12 @@ export function url_parameters() {
     if (fragment_string !== "") {
         data = data.concat(parse_parameters(fragment_string));
     }
-    const query_string = window.location.href.match(/\?(.*)$/);
-    if (query_string !== null) {
-        data = data.concat(parse_parameters(query_string[1]));
+    // `location.href` includes the fragment. Freeform diagrams deliberately store their
+    // independent layout in that fragment, so parsing from `href` would append `#layout=…` to the
+    // base64 `q` value and corrupt the diagram when an exported URL is opened in a new tab.
+    const query_string = window.location.search.replace(/^\?/, "");
+    if (query_string !== "") {
+        data = data.concat(parse_parameters(query_string));
     }
     return new Map(data);
 }
