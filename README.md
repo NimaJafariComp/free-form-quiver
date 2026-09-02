@@ -54,6 +54,69 @@ make test
 For the original Quiver keyboard workflow and conventional commutative-diagram features, see the
 [upstream tutorial](https://github.com/varkor/quiver/blob/master/tutorial.md).
 
+## How to use Free Form Quiver
+
+Free Form Quiver starts with a blank, grid-free canvas. Objects keep their own positions, so moving
+or resizing one object does not reflow the rest of the figure.
+
+### Nodes
+
+1. Choose **Add node** (or press `N`), then click the canvas to place a node.
+2. Drag a node to move it. Select it to edit its LaTeX label in the input at the bottom of the
+   editor.
+3. With one or more nodes selected, use **Bullet node**, **Square node**, or **Circle node** to
+   change their marker. Use **Node smaller** / **Node larger** (or `[` / `]`) to change marker
+   size.
+
+Node labels, marker shapes, sizes, and positions are included in the saved diagram URL.
+
+### Arrows
+
+The **Add arrow** menu has two choices:
+
+- **Connected arrow**: choose it, then click a source node and a target node. This creates a normal
+  Quiver arrow between the nodes.
+- **Free arrow**: choose it, then click the canvas to place a short independent arrow. Its two
+  endpoint handles are visible only while the arrow is selected; drag either handle to position the
+  arrow anywhere. Free arrows do not create visible nodes or require an existing node.
+
+Select either type of arrow to use the same label, curve, length, offset, colour, line, tail, and
+arrowhead settings. Delete a free arrow normally; its hidden endpoint anchors are deleted with it.
+
+### Standalone text
+
+1. Choose **Add text** (or press `T`), then click the canvas.
+2. The text input is focused immediately; replace the default text with LaTeX.
+3. Select the text and open **Text** to choose normal, bold, italic, sans-serif, small, large, or
+   huge formatting. These controls update the underlying LaTeX, so the formatting is preserved in
+   saved URLs and TikZ exports.
+
+Standalone text has no node marker. If you clear all of its text, it remains editable while
+selected and is removed when you click away.
+
+### Boxes and layout
+
+Use **Boxes** to add a **Definition box** or **Problem bank**. Drag a box to reposition it and drag
+its resize handle to resize it. Select a box and edit its title in the same bottom input used for
+labels. Nodes placed inside a box become members of that box; dragging them across its border moves
+them with the expected container behavior.
+
+Use **Drag** to toggle persistent canvas panning. Standard selection, multi-selection, Undo, and
+Redo remain available; `⌘/Ctrl+Z` undoes and `⌘/Ctrl+Shift+Z` redoes.
+
+### Save, share, import, and export
+
+- Choose **Save** (or `⌘/Ctrl+S`) to place the complete diagram in the current URL. Copy that URL
+  to share it or open it in a new tab. It preserves freeform positions, node markers and sizes,
+  arrow styles and labels, text formatting, boxes, and free-arrow endpoints.
+- Turn on **Autosave** in **Settings** if the URL should update after every edit.
+- Use the export panel to download **SVG** or **PNG**; PNG export includes an opaque background and
+  a selectable scale. Use **LaTeX** to export Free Form Quiver's absolute-coordinate TikZ.
+- The **Import** panel accepts ordinary `tikz-cd` diagrams and Free Form Quiver's exported TikZ.
+  To compile freeform TikZ, place
+  [`freeform-quiver.sty`](package/freeform-quiver.sty) beside your document and add
+  `\usepackage{freeform-quiver}` to its preamble.
+
 ## Features
 
 Free Form Quiver retains Quiver's efficient arrow editor while adding independent placement for
