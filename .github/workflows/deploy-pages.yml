@@ -39,7 +39,7 @@ jobs:
         with:
           node-version: 24
       - name: Build deployable assets
-        run: make
+        run: make src/KaTeX service-worker
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with:
