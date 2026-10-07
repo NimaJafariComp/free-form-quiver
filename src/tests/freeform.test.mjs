@@ -185,6 +185,9 @@ test("the LaTeX importer detects this fork's freeform TikZ vocabulary", () => {
     assert.match(quiver, /freeformquivernode/);
     assert.match(quiver, /freeformquiverbox/);
     assert.match(quiver, /freeformquiverarrow/);
+    assert.match(quiver, /freeform_tikz_colour\(args\.options\)/);
+    assert.match(quiver, /freeform_tikz_colour\(match\[1\]\)/);
+    assert.match(quiver, /coordinate_edge_pattern/);
 });
 
 test("free-arrow endpoint handles render above their backing edge", () => {

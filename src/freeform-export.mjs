@@ -141,7 +141,11 @@ export const freeform_svg = (scene, { padding = 24, background = null, rasterize
     return `<?xml version="1.0" encoding="UTF-8"?>\n<svg xmlns="http://www.w3.org/2000/svg" width="${number(bounds.width)}" height="${number(bounds.height)}" viewBox="${number(bounds.x)} ${number(bounds.y)} ${number(bounds.width)} ${number(bounds.height)}"><defs><marker id="qv-arrowhead" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="context-stroke"/></marker><style>.qv-node-label,.qv-edge-label{display:flex;width:100%;height:100%;align-items:center;justify-content:center;text-align:center;overflow:visible;font:20px KaTeX_Main,serif}.qv-edge-label{font-size:16px;background:transparent}.katex{white-space:nowrap}</style></defs>${background ? `<rect x="${number(bounds.x)}" y="${number(bounds.y)}" width="${number(bounds.width)}" height="${number(bounds.height)}" fill="${xml(background)}"/>` : ""}${box_svg}${arrows}${node_svg}</svg>`;
 };
 
-const tikz_colour = (colour, fallback = "black") => /^#[0-9a-f]{6}$/i.test(colour || "") ? colour : fallback;
+const tikz_colour = (colour, fallback = "black") => {
+    const match = /^#([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})$/i.exec(colour || "");
+    return match === null ? fallback
+        : `rgb,255:red,${parseInt(match[1], 16)};green,${parseInt(match[2], 16)};blue,${parseInt(match[3], 16)}`;
+};
 
 // The editor stores arrow length as the percentage trimmed from each end of
 // its rendered curve. TikZ's `shorten <=` / `shorten >=` take dimensions, so
@@ -183,13 +187,35 @@ const tikz_arrow_options = (edge, source, target) => {
     const body = style.body?.name;
     if (body === "dashed" || body === "dotted") options.push(body);
     if (body === "squiggly") options.push("decorate, decoration={snake, amplitude=0.7mm, segment length=2mm}");
+    if (body === "none") options.push("no body");
+    if (["barred", "double barred", "bullet solid", "bullet hollow"].includes(body)) {
+        const shorten = edge.options?.shorten || {};
+        const position = (Number(shorten.source || 0) + 100 - Number(shorten.target || 0)) / 200;
+        const mark = body === "barred" ? "\\draw (0pt,-2pt) -- (0pt,2pt);"
+            : body === "double barred" ? "\\draw (-1pt,-2pt) -- (-1pt,2pt) (1pt,-2pt) -- (1pt,2pt);"
+                : `\\filldraw[fill=${body === "bullet hollow" ? "white" : "current color"}] (0,0) circle (2pt);`;
+        options.push(`postaction={decorate,decoration={markings,mark=at position ${number(position)} with {${mark}}}}`);
+    }
     if (style.head?.name === "none") options.push("-");
     else if (style.head?.name === "epi") options.push("-{Stealth[scale=1.1]}-{Stealth[scale=0.7]}");
     else if (style.head?.name === "harpoon") options.push("-{Hooks[harpoon]}");
+    else if (style.head?.name === "multimap") options.push("multimap");
     else options.push("->");
     if (style.tail?.name === "hook") options.push("Hooks-");
     if (style.tail?.name === "mono") options.push("-{Bar[width=4pt]}-");
-    if (edge.colour) options.push(`draw=${tikz_colour(edge.colour)}`);
+    if (style.tail?.name === "maps to") options.push("Bar-");
+    if (style.tail?.name === "arrowhead") options.push("Stealth-");
+    if (style.tail?.name === "coil") options.push(style.tail.side === "bottom" ? "coil'-" : "coil-");
+    if (edge.colour) options.push(`draw={${tikz_colour(edge.colour)}}`);
+    const level = Math.max(1, Number(edge.level || 1));
+    if (level > 1) options.push(`line width=${number((level * 1.5 + (level - 1) * 4.5) * PX_TO_PT)}pt`);
+    const offset = Number(edge.options?.offset || 0) * 8;
+    if (offset !== 0) {
+        const start = endpoint(source);
+        const end = endpoint(target);
+        const length = Math.hypot(end.x - start.x, end.y - start.y) || 1;
+        options.push(`shift={({${number(-(end.y - start.y) / length * offset * PX_TO_PT)}pt,${number(-(end.x - start.x) / length * offset * PX_TO_PT)}pt})}`);
+    }
     const length = edge_length(edge, source, target);
     const shorten = edge.options?.shorten || {};
     const source_shorten = Math.max(0, Number(shorten.source) || 0) / 100 * length * PX_TO_PT;
@@ -217,7 +243,26 @@ export const freeform_tikz = (scene, { source_url = "" } = {}) => {
     }
     for (const edge of scene.edges || []) {
         if (edge.free && edge.source_point && edge.target_point) {
-            lines.push(`  \\freeformquiverarrow{${number(edge.source_point.x)}}{${number(edge.source_point.y)}}{${number(edge.target_point.x)}}{${number(edge.target_point.y)}}`);
+            const source = {
+                id: "free-source",
+                bounds: { x: edge.source_point.x, y: edge.source_point.y, width: 0, height: 0 },
+            };
+            const target = {
+                id: "free-target",
+                bounds: { x: edge.target_point.x, y: edge.target_point.y, width: 0, height: 0 },
+            };
+            const options = tikz_arrow_options(edge, source, target);
+            const start = `(${number(edge.source_point.x)},${number(edge.source_point.y)})`;
+            const end = `(${number(edge.target_point.x)},${number(edge.target_point.y)})`;
+            const curve = Number(edge.options?.curve || 0);
+            const position = Math.max(0, Math.min(1, Number(edge.options?.label_position ?? 50) / 100));
+            const label = edge.label
+                ? ` node[pos=${number(position)}, ${edge.options?.label_alignment === "left" ? "above, " : edge.options?.label_alignment === "right" ? "below, " : ""}fill=white, inner sep=1pt] {$${edge.label}$}`
+                : "";
+            const path = curve === 0
+                ? `${start} --${label} ${end}`
+                : `${start} to[bend ${curve > 0 ? "left" : "right"}=${number(Math.min(85, Math.abs(curve) * 14))}]${label} ${end}`;
+            lines.push(`  \\draw[${options}] ${path};`);
             continue;
         }
         const source = nodes.get(edge.source);

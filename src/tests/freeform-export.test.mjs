@@ -9,7 +9,7 @@ const scene = {
         { id: "target", bounds: { x: 440, y: 200, width: 120, height: 64 }, label: "B" },
     ],
     boxes: [{ id: "bank", kind: "problem-bank", title: "Problem bank", bounds: { x: 0, y: 0, width: 640, height: 360 } }],
-    edges: [{ source: "source", target: "target", label: "f", options: { curve: 1, shorten: { source: 5, target: 20 }, style: { head: { name: "arrowhead" }, body: { name: "dashed" }, tail: { name: "none" } } } }],
+    edges: [{ source: "source", target: "target", label: "f", colour: "#d65c5c", options: { curve: 1, shorten: { source: 5, target: 20 }, style: { head: { name: "arrowhead" }, body: { name: "dashed" }, tail: { name: "none" } } } }],
 };
 
 test("freeform exporters use absolute scene bounds rather than grid positions", () => {
@@ -19,6 +19,7 @@ test("freeform exporters use absolute scene bounds rather than grid positions", 
     assert.match(tikz, /\(qv-source\) to\[bend left=14\]/);
     assert.match(tikz, /shorten <=.*pt/);
     assert.match(tikz, /shorten >=.*pt/);
+    assert.match(tikz, /draw=\{rgb,255:red,214;green,92;blue,92\}/);
     assert.doesNotMatch(tikz, /tikzcd|Position|row sep/);
 });
 
@@ -66,11 +67,22 @@ test("SVG includes node-independent free arrows", () => {
     }] }), { x: -12, y: -4, width: 132, height: 72 });
 });
 
-test("TikZ preserves node-independent free arrows for re-import", () => {
+test("TikZ preserves node-independent free arrow styling for re-import", () => {
     const tikz = freeform_tikz({ nodes: [], boxes: [], edges: [{
         free: true, source_point: { x: 12, y: 20 }, target_point: { x: 96, y: 44 },
+        label: "f", colour: "#d65c5c", options: {
+            curve: 1, label_position: 40, shorten: { source: 5, target: 20 },
+            style: { head: { name: "none" }, body: { name: "dashed" }, tail: { name: "none" } },
+        },
     }] }).data;
-    assert.match(tikz, /\\freeformquiverarrow\{12\}\{20\}\{96\}\{44\}/);
+    assert.match(tikz, /\\draw\[qv arrow, dashed, -, draw=\{rgb,255:red,214;green,92;blue,92\}, shorten <=[\d.]+pt, shorten >=[\d.]+pt\] \(12,20\) to\[bend left=14\] node\[pos=0\.40, fill=white, inner sep=1pt\] \{\$f\$\} \(96,44\);/);
+});
+
+test("SVG preserves colours on node-independent free arrows", () => {
+    const svg = freeform_svg({ nodes: [], edges: [{
+        free: true, source_point: { x: 12, y: 20 }, target_point: { x: 96, y: 44 }, colour: "#d65c5c",
+    }] });
+    assert.match(svg, /stroke="#d65c5c"/);
 });
 
 test("SVG supports an opaque background for PNG rasterisation", () => {

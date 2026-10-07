@@ -1966,7 +1966,9 @@ class UI {
             level: edge.level,
         })).concat(Array.from(this.free_arrows.values()).map((arrow) => ({
             free: true, source_point: arrow.source, target_point: arrow.target,
-            options: { style: { head: { name: "arrowhead" } } }, colour: "#111", level: 1,
+            label: arrow.edge.label,
+            options: JSON.parse(JSON.stringify(arrow.edge.options)),
+            colour: colour(arrow.edge.options.colour), level: arrow.edge.options.level,
         })));
         const styles = include_styles ? Array.from(document.styleSheets).flatMap((sheet) => {
             try { return Array.from(sheet.cssRules).map((rule) => rule.cssText); } catch (_) { return []; }
@@ -2596,6 +2598,10 @@ class UI {
         });
 
         document.addEventListener(pointer_event("up"), (event) => {
+            if (event.target instanceof Element
+                && event.target.closest(".colour-panel") !== null) {
+                return;
+            }
             if (event.button === 0 && this.free_arrow_drag !== null) {
                 this.free_arrow_drag = null;
                 return;

@@ -28,7 +28,7 @@
   \draw[qv #6] (#1,{#2+40}) -- ++(#3,0);%
 }
 
-%% #1/#2 source and #3/#4 target canvas coordinates for a node-independent arrow.
-\newcommand{\freeformquiverarrow}[4]{%
-  \draw[qv arrow, ->] (#1,#2) -- (#3,#4);%
+%% #2/#3 source and #4/#5 target canvas coordinates; optional #1 sets draw colour.
+\newcommand{\freeformquiverarrow}[5][draw=black]{%
+  \draw[qv arrow, ->, #1] (#2,#3) -- (#4,#5);%
 }

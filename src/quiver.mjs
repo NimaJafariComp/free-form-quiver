@@ -1033,6 +1033,15 @@ const freeform_commands = (source, name) => {
     const marker = `\\${name}`;
     while ((cursor = source.indexOf(marker, cursor)) !== -1) {
         let index = cursor + marker.length;
+        while (/\s/.test(source[index] || "")) ++index;
+        let options = "";
+        if (source[index] === "[") {
+            const end = source.indexOf("]", index);
+            if (end !== -1) {
+                options = source.slice(index + 1, end);
+                index = end + 1;
+            }
+        }
         const arguments_ = [];
         while (source[index] === "{") {
             let depth = 0;
@@ -1045,11 +1054,26 @@ const freeform_commands = (source, name) => {
             if (depth !== -1) break;
             arguments_.push(source.slice(start, index - 1));
         }
-        if (arguments_.length > 0) commands.push(arguments_);
+        if (arguments_.length > 0) {
+            arguments_.options = options;
+            commands.push(arguments_);
+        }
         cursor = Math.max(index, cursor + marker.length);
     }
     return commands;
 };
+
+const freeform_tikz_colour = (options) => {
+    const match = /(?:^|,)\s*draw\s*=\s*(\{rgb,255:red,\d+;green,\d+;blue,\d+\}|#[0-9a-f]{6})(?:\s*,|$)/i.exec(options);
+    if (match === null) return null;
+    const rgb = match[1].replace(/^\{|\}$/g, "");
+    const channels = rgb.startsWith("rgb,255:")
+        ? /red,(\d+);green,(\d+);blue,(\d+)/i.exec(rgb).slice(1).map(Number)
+        : rgb.slice(1).match(/../g).map((channel) => parseInt(channel, 16));
+    if (channels.some((channel) => channel < 0 || channel > 255)) return null;
+    return Colour.from_rgba(...channels);
+};
+const FREEFORM_PX_TO_PT = 0.75;
 
 QuiverImportExport.freeform_tikz = new class extends QuiverImportExport {
     import(ui, data) {
@@ -1087,13 +1111,55 @@ QuiverImportExport.freeform_tikz = new class extends QuiverImportExport {
                 diagnostics.push(new Parser.Warning("Skipped a malformed freeform arrow.", null));
                 continue;
             }
-            ui.add_free_arrow({ x: Number(args[0]), y: Number(args[1]) }, { x: Number(args[2]), y: Number(args[3]) });
+            const arrow = ui.add_free_arrow({ x: Number(args[0]), y: Number(args[1]) }, { x: Number(args[2]), y: Number(args[3]) });
+            const colour = freeform_tikz_colour(args.options);
+            if (colour !== null) {
+                arrow.edge.options.colour = colour;
+                arrow.edge.render(ui);
+            }
         }
-        const edge_pattern = /\\draw\s*\[[^\]]*\]\s*\(([^)]+)\)\s*(?:--|to(?:\[[^\]]*\])?)\s*(?:node\[[^\]]*\]\s*\{[^}]*\}\s*)?\(([^)]+)\)\s*;/g;
+        const edge_pattern = /\\draw\s*\[([^\]]*)\]\s*\(([^)]+)\)\s*(?:--|to(?:\[[^\]]*\])?)\s*(?:node\[[^\]]*\]\s*\{[^}]*\}\s*)?\(([^)]+)\)\s*;/g;
         for (const match of data.matchAll(edge_pattern)) {
-            const source = vertices.get(match[1]);
-            const target = vertices.get(match[2]);
-            if (source && target) new Edge(ui, "", source, target, {});
+            const source = vertices.get(match[2]);
+            const target = vertices.get(match[3]);
+            if (source && target) {
+                const edge = new Edge(ui, "", source, target, {});
+                const colour = freeform_tikz_colour(match[1]);
+                if (colour !== null) {
+                    edge.options.colour = colour;
+                    edge.render(ui);
+                }
+            }
+        }
+        const coordinate_edge_pattern = /\\draw\s*\[([^\]]*)\]\s*\((-?(?:\d+(?:\.\d*)?|\.\d+)),\s*(-?(?:\d+(?:\.\d*)?|\.\d+))\)\s*(?:--|to(?:\[([^\]]*)\])?)\s*(?:node\[pos=([^\]]+)\]\s*\{\$([\s\S]*?)\$\}\s*)?\((-?(?:\d+(?:\.\d*)?|\.\d+)),\s*(-?(?:\d+(?:\.\d*)?|\.\d+))\)\s*;/g;
+        for (const match of data.matchAll(coordinate_edge_pattern)) {
+            const source = { x: Number(match[2]), y: Number(match[3]) };
+            const target = { x: Number(match[6]), y: Number(match[7]) };
+            const arrow = ui.add_free_arrow(source, target);
+            const options = match[1];
+            const colour = freeform_tikz_colour(options);
+            if (colour !== null) arrow.edge.options.colour = colour;
+            const body = /(?:^|,)\s*(dashed|dotted)(?:\s*,|$)/i.exec(options)?.[1];
+            if (body !== undefined) arrow.edge.options.style.body.name = body;
+            if (/(?:^|,)\s*-(?:\s*,|$)/.test(options)) {
+                arrow.edge.options.style.head.name = "none";
+            }
+            const bend = /bend\s+(left|right)\s*=\s*(-?(?:\d+(?:\.\d*)?|\.\d+))/i.exec(match[4] || "");
+            if (bend !== null) {
+                arrow.edge.options.curve = Number(bend[2]) / 14 * (bend[1].toLowerCase() === "left" ? 1 : -1);
+            }
+            const length = Math.hypot(target.x - source.x, target.y - source.y) || 1;
+            const shortening = /shorten\s*<=\s*([\d.]+)pt/.exec(options);
+            const shortening_target = /shorten\s*>=\s*([\d.]+)pt/.exec(options);
+            if (shortening !== null || shortening_target !== null) {
+                arrow.edge.options.shorten = {
+                    source: shortening === null ? 0 : Number(shortening[1]) / FREEFORM_PX_TO_PT / length * 100,
+                    target: shortening_target === null ? 0 : Number(shortening_target[1]) / FREEFORM_PX_TO_PT / length * 100,
+                };
+            }
+            if (match[5] !== undefined) arrow.edge.label = match[5];
+            arrow.edge.render(ui);
+            if (match[5] !== undefined) ui.panel.render_maths(ui, arrow.edge);
         }
         ui.quiver.flush(ui.present);
         this.end_import(ui, ui.quiver.all_cells());
