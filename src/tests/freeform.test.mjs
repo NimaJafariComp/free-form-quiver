@@ -376,6 +376,12 @@ test("properties controls isolate pointer-up events from canvas dismissal", () =
     assert.match(css, /\.label-input-container \{[\s\S]*z-index: 92/);
 });
 
+test("colour picker stays above canvas and arrow endpoints", () => {
+    const css = readFileSync(resolve("src/main.css"), "utf8");
+    assert.match(css, /\.container \{[\s\S]*z-index: 1/);
+    assert.match(css, /\.colour-panel \{[\s\S]*z-index: 93/);
+});
+
 test("localhost does not retain a production service-worker cache", () => {
     const index = readFileSync(resolve("src/index.html"), "utf8");
     const worker = readFileSync(resolve("service-worker/build.js"), "utf8");
