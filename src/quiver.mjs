@@ -1039,6 +1039,7 @@ QuiverImportExport.typst = new class extends QuiverImportExport {
         }
 
         this.begin_import(ui);
+        ui.set_layout_mode("grid");
         const vertices = new Map();
         const labels = new Map(diagram.nodes.map((node) => [`${node.x},${node.y}`, node.label]));
         const imported = [];
@@ -1046,20 +1047,7 @@ QuiverImportExport.typst = new class extends QuiverImportExport {
             const key = `${point.x},${point.y}`;
             if (!vertices.has(key)) {
                 const vertex_label = labels.get(key) || "";
-                const vertex = new Vertex(ui, vertex_label, new Position(imported.length, 0));
-                if (vertex_label === "") {
-                    vertex.freeform_symbol = "none";
-                } else {
-                    vertex.freeform_text = true;
-                    vertex.element.class_list.add("freeform-text");
-                }
-                ui.set_freeform_bounds(vertex, {
-                    x: point.x * ui.default_cell_size + ui.default_cell_size / 2 - ui.freeform_node_size / 2,
-                    y: point.y * ui.default_cell_size + ui.default_cell_size / 2 - ui.freeform_node_size / 2,
-                    width: ui.freeform_node_size,
-                    height: ui.freeform_node_size,
-                });
-                ui.render_freeform_vertex_symbol(vertex);
+                const vertex = new Vertex(ui, vertex_label, new Position(point.x, point.y));
                 vertices.set(key, vertex);
                 imported.push(vertex);
             }

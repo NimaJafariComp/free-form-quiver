@@ -681,10 +681,13 @@ class UI {
         this.default_cell_size = 128;
         // A freeform vertex is a point-like wiring anchor, not a legacy grid cell.
         this.freeform_node_size = 32;
-        // This fork is deliberately grid-free. Imported Quiver documents use
-        // their original integer coordinates only as initial freeform positions;
-        // no URL parameter can re-enable shared row/column sizing.
-        this.layout_mode = "freeform";
+        // Preserve the original grid layout for saved Typst-rendered diagrams from before the
+        // freeform payload was added. New diagrams remain freeform.
+        const initial_parameters = url_parameters();
+        this.layout_mode = initial_parameters.get("r") === "typst"
+            && initial_parameters.has("q") && !initial_parameters.has("freeform")
+            ? "grid"
+            : "freeform";
         this.freeform_layout = new FreeformLayout({ snap: 16 });
         this.box_store = new BoxStore();
         this.box_elements = new Map();
@@ -805,6 +808,12 @@ class UI {
 
     is_freeform() {
         return this.layout_mode === "freeform";
+    }
+
+    set_layout_mode(layout_mode) {
+        this.layout_mode = layout_mode;
+        this.element.class_list.toggle("freeform", this.is_freeform());
+        this.update_grid();
     }
 
     freeform_bounds_for(vertex) {
@@ -1994,7 +2003,7 @@ class UI {
 
     initialise() {
         this.element.class_list.add("ui");
-        this.element.class_list.add("freeform");
+        this.element.class_list.toggle("freeform", this.is_freeform());
         this.switch_mode(UIMode.default);
 
         // Set the grid background.
