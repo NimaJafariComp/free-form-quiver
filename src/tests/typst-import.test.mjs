@@ -52,10 +52,9 @@ test("rejects inputs that are not Typst diagram expressions", () => {
     assert.throws(() => parse_typst_diagram("diagram({ edge((0, 0), (1, 0)) })"), /nodes were found/);
 });
 
-test("imports Typst coordinates as legacy grid positions", () => {
+test("keeps empty Typst anchor nodes invisible without making them disposable text", () => {
     const quiver = readFileSync(resolve("src/quiver.mjs"), "utf8");
-    const ui = readFileSync(resolve("src/ui.mjs"), "utf8");
-    assert.match(quiver, /ui\.set_layout_mode\("grid"\);[\s\S]*?new Vertex\(ui, vertex_label, new Position\(point\.x, point\.y\)\)/);
-    assert.match(ui, /initial_parameters\.get\("r"\) === "typst"[\s\S]*?initial_parameters\.has\("freeform"\)[\s\S]*?\? "grid"\s*:\s*"freeform"/);
-    assert.match(ui, /set_layout_mode\(layout_mode\)[\s\S]*?class_list\.toggle\("freeform", this\.is_freeform\(\)\)/);
+    const css = readFileSync(resolve("src/main.css"), "utf8");
+    assert.match(quiver, /if \(vertex_label === ""\) \{\s*vertex\.freeform_symbol = "none"/);
+    assert.match(css, /\.freeform-symbol\[data-symbol="none"\][\s\S]*?display: none/);
 });
