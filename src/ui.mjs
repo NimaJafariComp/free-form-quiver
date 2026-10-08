@@ -2145,6 +2145,7 @@ class UI {
             ]))
             .add(new DOM.Element("h2").add("Import and export"))
             .add(new DOM.Table([
+                ["Import Typst diagram", (td) => Shortcuts.element(td, [{ key: "I", modifier: true }])],
                 ["Import LaTeX / TikZ", (td) => Shortcuts.element(td, [{ key: "I", modifier: true }])],
                 ["Open export panel", (td) => Shortcuts.element(td, [{ key: "E", modifier: true }])],
                 ["Open this shortcuts panel", (td) => Shortcuts.element(td, [{ key: "/", modifier: true }])],
@@ -6914,6 +6915,7 @@ class Panel {
                             textarea.set_attributes({ contenteditable: "false" });
                             parse_button.set_attributes({ disabled: "" });
                             const text = textarea.element.textContent;
+                            const import_format_name = format === "typst" ? "Typst" : "tikz-cd";
                             // Remove the existing diagram. This also clears the undo/redo history.
                             ui.clear_quiver();
                             // The following should never throw an error: any parse errors will be
@@ -6937,13 +6939,13 @@ class Panel {
 
                                 // Display the diagnostics.
                                 if (diagnostics.length > 0) {
-                                    error.clear().add("The ").add(new DOM.Code("tikz-cd"))
+                                    error.clear().add("The ").add(new DOM.Code(import_format_name))
                                         .add(" diagram was not imported " +
                                         "successfully, as an error was encountered when parsing:")
                                     warning.clear().add("Note that the imported ")
                                         .add(new DOM.Element("b").add("quiver"))
                                         .add(" diagram may not match the ")
-                                        .add(new DOM.Code("tikz-cd"))
+                                        .add(new DOM.Code(import_format_name))
                                         .add(" diagram exactly, as certain issues " +
                                         "were encountered when parsing:");
 
@@ -7231,6 +7233,19 @@ class Panel {
                         .add(new DOM.Element("b").add("quiver"))
                         .add(" ↴");
                 }
+                if (kind === "import" && format === "typst") {
+                    note.add("Paste a Typst ").add(new DOM.Code("diagram(...)"))
+                        .add(" expression below to load it into ")
+                        .add(new DOM.Element("b").add("quiver"))
+                        .add(" ↴");
+                }
+                if (kind === "import") {
+                    import_success.clear()
+                        .add(new DOM.Code(format === "typst" ? "Typst" : "tikz-cd"))
+                        .add(" diagram imported successfully. Press ")
+                        .add(new DOM.Element("kbd").add("Escape"))
+                        .add(" to view the diagram.");
+                }
                 if (kind === "export") {
                     note.add("If you need to edit this diagram, you can open it again in ")
                         .add(new DOM.Element("b").add("quiver"))
@@ -7254,9 +7269,9 @@ class Panel {
                     kind !== "export" || format !== "fletcher",
                 );
                 embed_options.class_list.toggle("hidden", kind !== "export" || format !== "html");
-                const import_tikz_cd = kind !== "import" || format !== "tikz-cd";
-                textarea.class_list.toggle("hidden", import_tikz_cd);
-                parse_button.class_list.toggle("hidden", import_tikz_cd);
+                const show_import_text = kind === "import" && ["tikz-cd", "typst"].includes(format);
+                textarea.class_list.toggle("hidden", !show_import_text);
+                parse_button.class_list.toggle("hidden", !show_import_text);
 
                 for (const checkbox of port_pane.query_selector_all('input[type="checkbox"]')) {
                     if (ui.settings.get(checkbox.get_attribute("data-setting"))) {
@@ -7277,7 +7292,7 @@ class Panel {
                 port_pane.class_list.add(kind);
 
                 update_output(data, metadata);
-                if (kind === "import" && format === "tikz-cd") {
+                if (kind === "import" && ["tikz-cd", "typst"].includes(format)) {
                     delay(() => textarea.element.focus());
                 }
                 // Disable cell data editing while the import/export pane is visible.
@@ -7298,6 +7313,17 @@ class Panel {
                 }
             },
         ).set_attributes({ class: "short katex-only" });
+
+        const import_from_typst = Panel.create_button_with_shortcut(
+            ui,
+            "Typst",
+            { key: "I", modifier: true, context: Shortcuts.SHORTCUT_PRIORITY.Always },
+            () => {
+                if (ui.settings.get("quiver.renderer") === "typst") {
+                    display_port_pane("import", "typst");
+                }
+            },
+        ).set_attributes({ class: "short typst-only" });
 
         // The export buttons.
         const export_to_latex = Panel.create_button_with_shortcut(
@@ -7370,6 +7396,8 @@ class Panel {
         .add(renderer_select).add(
             new DOM.Element("label").add("Import: ").set_attributes({ "class": "katex-only" })
         ).add(import_from_tikz)
+        .add(new DOM.Element("label").add("Import: ").set_attributes({ "class": "typst-only" }))
+        .add(import_from_typst)
         .add(new DOM.Element("button", { class: "katex-only" }).add("Macros")
             .listen("click", () => {
                 const is_hidden = ui.macros_pane.class_list.contains("hidden");

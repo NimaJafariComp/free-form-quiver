@@ -523,6 +523,7 @@ kbd {
     border-radius: 50%;
 }
 
+.ui.freeform .vertex .freeform-symbol[data-symbol="none"],
 .ui.freeform .vertex.freeform-text .freeform-symbol {
     display: none;
 }

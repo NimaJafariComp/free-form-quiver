@@ -4,6 +4,7 @@ import { CONSTANTS } from "./arrow.mjs";
 import { RectangularBox } from "./freeform.mjs";
 import { Parser } from "./parser.mjs";
 import { freeform_tikz } from "./freeform-export.mjs";
+import { parse_typst_diagram } from "./typst-import.mjs";
 import { Edge, Vertex } from "./ui.mjs";
 
 /// A directed n-pseudograph, in which (k + 1)-cells can connect k-cells.
@@ -253,6 +254,7 @@ export class Quiver {
     /// Return a `{ data, metadata }` object.
     /// Currently, the supported formats are:
     /// - "tikz-cd"
+    /// - "typst"
     /// `settings` describes persistent user settings (like whether to centre the diagram);
     import(ui, format, data, settings) {
         switch (format) {
@@ -262,6 +264,8 @@ export class Quiver {
                     return QuiverImportExport.freeform_tikz.import(ui, data, settings);
                 }
                 return QuiverImportExport.tikz_cd.import(ui, data, settings);
+            case "typst":
+                return QuiverImportExport.typst.import(ui, data, settings);
             default:
                 throw new Error(`unknown export format \`${format}\``);
         }
@@ -1022,6 +1026,62 @@ QuiverImportExport.tikz_cd = new class extends QuiverImportExport {
         this.end_import(ui, ui.quiver.all_cells());
 
         return { diagnostics: parser.diagnostics };
+    }
+};
+
+QuiverImportExport.typst = new class extends QuiverImportExport {
+    import(ui, data) {
+        let diagram;
+        try {
+            diagram = parse_typst_diagram(data);
+        } catch (error) {
+            return { diagnostics: [new Parser.Error(error.message, null)] };
+        }
+
+        this.begin_import(ui);
+        const vertices = new Map();
+        const labels = new Map(diagram.nodes.map((node) => [`${node.x},${node.y}`, node.label]));
+        const imported = [];
+        const get_vertex = (point) => {
+            const key = `${point.x},${point.y}`;
+            if (!vertices.has(key)) {
+                const vertex_label = labels.get(key) || "";
+                const vertex = new Vertex(ui, vertex_label, new Position(imported.length, 0));
+                if (vertex_label === "") {
+                    vertex.freeform_symbol = "none";
+                } else {
+                    vertex.freeform_text = true;
+                    vertex.element.class_list.add("freeform-text");
+                }
+                ui.set_freeform_bounds(vertex, {
+                    x: point.x * ui.default_cell_size + ui.default_cell_size / 2 - ui.freeform_node_size / 2,
+                    y: point.y * ui.default_cell_size + ui.default_cell_size / 2 - ui.freeform_node_size / 2,
+                    width: ui.freeform_node_size,
+                    height: ui.freeform_node_size,
+                });
+                ui.render_freeform_vertex_symbol(vertex);
+                vertices.set(key, vertex);
+                imported.push(vertex);
+            }
+            return vertices.get(key);
+        };
+
+        for (const node of diagram.nodes) get_vertex(node);
+        ui.quiver.flush(ui.present);
+        for (const edge of diagram.edges) {
+            const options = edge.centred_label ? { label_alignment: "centre" } : {};
+            if (edge.direction === "<-") {
+                options.style = { tail: { name: "arrowhead" }, head: { name: "none" } };
+            } else if (edge.direction === "<->") {
+                options.style = { tail: { name: "arrowhead" } };
+            } else if (edge.direction === "-") {
+                options.style = { head: { name: "none" } };
+            }
+            imported.push(new Edge(ui, edge.label, get_vertex(edge.source), get_vertex(edge.target), options));
+        }
+
+        this.end_import(ui, imported);
+        return { diagnostics: [] };
     }
 };
 
