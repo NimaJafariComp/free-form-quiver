@@ -7,6 +7,11 @@ const read_call = (source, open) => {
             ++index;
             continue;
         }
+        if (stack.includes("]")) {
+            if (character === "[") stack.push("]");
+            else if (character === "]" && stack.at(-1) === "]") stack.pop();
+            continue;
+        }
         if (character === '"') {
             quoted = !quoted;
             continue;
@@ -32,6 +37,11 @@ const split_arguments = (source) => {
         const character = source[index];
         if (character === "\\") {
             ++index;
+            continue;
+        }
+        if (stack.includes("]")) {
+            if (character === "[") stack.push("]");
+            else if (character === "]" && stack.at(-1) === "]") stack.pop();
             continue;
         }
         if (character === '"') {

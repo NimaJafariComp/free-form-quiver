@@ -11,6 +11,7 @@ test("imports the original Typst node and edge syntax with coordinates and label
         node((1, 0), [$H = \{a^n | n \in \Z\}$])
         node((2, 0))
         edge((0, 0), (1, 0), [$\text{Projection}$], label-side: center, "->")
+        edge((1, 0), (2, 0), [$\text{Sub (via} a^{n})$], label-side: center, "->")
         edge((2, 0), (0, 0), "<-")
     }))`;
 
@@ -25,6 +26,13 @@ test("imports the original Typst node and edge syntax with coordinates and label
                 source: { x: 0, y: 0 },
                 target: { x: 1, y: 0 },
                 label: String.raw`\text{Projection}`,
+                direction: "->",
+                centred_label: true,
+            },
+            {
+                source: { x: 1, y: 0 },
+                target: { x: 2, y: 0 },
+                label: String.raw`\text{Sub (via} a^{n})`,
                 direction: "->",
                 centred_label: true,
             },
